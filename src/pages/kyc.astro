@@ -1,0 +1,38 @@
+---
+import AdminLayout from "../layouts/AdminLayout.astro";
+import { kycQueue } from "../lib/mock-data";
+---
+
+<AdminLayout title="Validation KYC" eyebrow="Confiance">
+  <section class="rounded-lg border border-line bg-white shadow-panel">
+    <div class="border-b border-line px-5 py-4">
+      <h3 class="font-semibold">Dossiers en attente</h3>
+      <p class="text-sm text-muted">Validation documentaire conducteurs, transporteurs et agences.</p>
+    </div>
+    <div class="grid gap-4 p-5 lg:grid-cols-3">
+      {
+        kycQueue.map((item) => (
+          <article class="rounded-md border border-line p-4">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <p class="font-semibold">{item.id}</p>
+                <p class="text-sm text-muted">{item.profile} · {item.city}</p>
+              </div>
+              <span class="rounded-full bg-surface px-2 py-1 text-xs text-muted">{item.age}</span>
+            </div>
+            <p class="mt-4 text-sm">{item.documents} documents a examiner</p>
+            <div class="mt-4 flex gap-2">
+              <button class="rounded-md bg-brand-700 px-3 py-2 text-sm font-medium text-white">
+                Valider
+              </button>
+              <button class="rounded-md border border-line px-3 py-2 text-sm font-medium">
+                Rejeter avec motif
+              </button>
+            </div>
+          </article>
+        ))
+      }
+    </div>
+  </section>
+</AdminLayout>
+

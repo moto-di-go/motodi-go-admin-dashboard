@@ -1,0 +1,52 @@
+---
+import AdminLayout from "../layouts/AdminLayout.astro";
+import { pricingRules } from "../lib/mock-data";
+---
+
+<AdminLayout title="Parametrage tarifaire" eyebrow="SIG et tarifs">
+  <div class="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+    <section class="rounded-lg border border-line bg-white shadow-panel">
+      <div class="border-b border-line px-5 py-4">
+        <h3 class="font-semibold">Regles actives</h3>
+        <p class="text-sm text-muted">Zones, creneaux et coefficients consommes par le calculateur.</p>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full min-w-[620px] text-left text-sm">
+          <thead class="bg-surface text-xs uppercase text-muted">
+            <tr>
+              <th class="px-5 py-3">Zone</th>
+              <th class="px-5 py-3">Creneau</th>
+              <th class="px-5 py-3">Base</th>
+              <th class="px-5 py-3">Coeff.</th>
+            </tr>
+          </thead>
+          <tbody>
+            {
+              pricingRules.map((item) => (
+                <tr class="border-t border-line">
+                  <td class="px-5 py-4 font-medium">{item.zone}</td>
+                  <td class="px-5 py-4">{item.window}</td>
+                  <td class="px-5 py-4">{item.base}</td>
+                  <td class="px-5 py-4">{item.coefficient}</td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="rounded-lg border border-line bg-white p-5 shadow-panel">
+      <h3 class="font-semibold">Couches SIG</h3>
+      <p class="mt-2 text-sm text-muted">
+        Placeholder pour previsualisation cartes trafic, travaux, routes degradees et alternatives.
+      </p>
+      <div class="mt-5 aspect-video rounded-md border border-dashed border-line bg-surface p-4">
+        <div class="h-full rounded bg-white p-4 text-sm text-muted">
+          Carte admin a connecter a Mapbox ou OpenStreetMap.
+        </div>
+      </div>
+    </section>
+  </div>
+</AdminLayout>
+
