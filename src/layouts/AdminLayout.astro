@@ -1,6 +1,7 @@
 ---
 import "../styles/global.css";
 import { config } from "../lib/config";
+import { getActiveProfile, normalizePath } from "../lib/auth/rbac";
 
 interface Props {
   title: string;
@@ -8,14 +9,13 @@ interface Props {
 }
 
 const { title, eyebrow = "Back-office" } = Astro.props;
-const navItems = [
-  { href: "/", label: "Operations" },
-  { href: "/kyc", label: "KYC" },
-  { href: "/moderation", label: "Moderation" },
-  { href: "/pricing", label: "Tarification" },
-  { href: "/kpi", label: "KPI" }
-];
-const currentPath = Astro.url.pathname;
+const session = Astro.locals.adminSession;
+const navItems = Astro.locals.navigation ?? [];
+const activeProfile = session ? getActiveProfile(session) : undefined;
+const profileLabel = activeProfile
+  ? `${activeProfile.type} - ${activeProfile.validationStatus}`
+  : "Session inconnue";
+const currentPath = normalizePath(Astro.url.pathname);
 ---
 
 <!doctype html>
@@ -36,12 +36,12 @@ const currentPath = Astro.url.pathname;
             MOTO'DI GO
           </p>
           <h1 class="mt-2 text-xl font-semibold">Admin dashboard</h1>
-          <p class="mt-1 text-sm text-muted">{config.appEnv} · {config.apiBaseUrl}</p>
+          <p class="mt-1 text-sm text-muted">{config.appEnv} - {profileLabel}</p>
         </div>
         <nav class="space-y-1">
           {
             navItems.map((item) => {
-              const active = currentPath === item.href;
+              const active = currentPath === normalizePath(item.href);
               return (
                 <a
                   href={item.href}
@@ -67,20 +67,38 @@ const currentPath = Astro.url.pathname;
               </p>
               <h2 class="mt-1 text-2xl font-semibold">{title}</h2>
             </div>
-            <div class="rounded-md border border-line px-3 py-2 text-sm text-muted">
-              Donnees mockees · RBAC a connecter
+            <div class="flex flex-wrap items-center gap-3">
+              <div class="rounded-md border border-line px-3 py-2 text-sm text-muted">
+                {session?.phoneNumber ?? "Compte admin"} - RBAC actif
+              </div>
+              <form method="post" action="/api/logout">
+                <button
+                  type="submit"
+                  class="rounded-md border border-line bg-white px-3 py-2 text-sm font-medium text-ink hover:bg-surface"
+                >
+                  Deconnexion
+                </button>
+              </form>
             </div>
           </div>
           <nav class="mt-4 flex gap-2 overflow-x-auto lg:hidden">
             {
-              navItems.map((item) => (
-                <a
-                  href={item.href}
-                  class="whitespace-nowrap rounded-md border border-line bg-white px-3 py-2 text-sm"
-                >
-                  {item.label}
-                </a>
-              ))
+              navItems.map((item) => {
+                const active = currentPath === normalizePath(item.href);
+                return (
+                  <a
+                    href={item.href}
+                    class:list={[
+                      "whitespace-nowrap rounded-md border px-3 py-2 text-sm font-medium",
+                      active
+                        ? "border-brand-700 bg-brand-50 text-brand-900"
+                        : "border-line bg-white text-muted"
+                    ]}
+                  >
+                    {item.label}
+                  </a>
+                );
+              })
             }
           </nav>
         </header>
@@ -92,4 +110,3 @@ const currentPath = Astro.url.pathname;
     </div>
   </body>
 </html>
-

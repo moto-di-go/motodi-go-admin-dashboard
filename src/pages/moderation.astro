@@ -14,7 +14,7 @@ import { moderationQueue } from "../lib/mock-data";
         moderationQueue.map((item) => (
           <article class="grid gap-4 px-5 py-4 md:grid-cols-[1fr_auto] md:items-center">
             <div>
-              <p class="font-semibold">{item.id} · {item.target}</p>
+              <p class="font-semibold">{item.id} - {item.target}</p>
               <p class="text-sm text-muted">{item.reason}</p>
             </div>
             <div class="flex flex-wrap gap-2">
@@ -30,4 +30,3 @@ import { moderationQueue } from "../lib/mock-data";
     </div>
   </section>
 </AdminLayout>
-

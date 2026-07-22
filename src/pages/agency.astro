@@ -1,0 +1,26 @@
+---
+import AdminLayout from "../layouts/AdminLayout.astro";
+import { agencyOverview } from "../lib/mock-data";
+---
+
+<AdminLayout title="Espace agence" eyebrow="Agence">
+  <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+    {
+      agencyOverview.map((item) => (
+        <article class="rounded-lg border border-line bg-white p-5 shadow-panel">
+          <p class="text-sm text-muted">{item.label}</p>
+          <strong class="mt-3 block text-2xl font-semibold">{item.value}</strong>
+          <p class="mt-2 text-sm text-muted">{item.detail}</p>
+        </article>
+      ))
+    }
+  </section>
+
+  <section class="mt-6 rounded-lg border border-line bg-white p-5 shadow-panel">
+    <h3 class="font-semibold">Donnees agence</h3>
+    <p class="mt-2 text-sm text-muted">
+      Vue shell reservee au profil agence valide. Les annonces, reservations et statistiques seront
+      branchees par le ticket ADMIN-AGENCY-001.
+    </p>
+  </section>
+</AdminLayout>

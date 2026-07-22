@@ -37,3 +37,9 @@ export const kpiCards = [
   { label: "Revenus agence", value: "1,2M FCFA", target: "Forfaits mensuels" }
 ];
 
+export const agencyOverview = [
+  { label: "Annonces actives", value: "18", detail: "Interurbain publie" },
+  { label: "Reservations", value: "324", detail: "Mois en cours" },
+  { label: "Taux remplissage", value: "78%", detail: "Moyenne flotte" },
+  { label: "Forfait", value: "10 000 FCFA", detail: "Abonnement mensuel" }
+];
