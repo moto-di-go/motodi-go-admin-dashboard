@@ -2,14 +2,15 @@
 
 ## Current Delivery State
 
-This repository delivers the ADMIN-AUTH-001 shell on Astro/Tailwind:
+This repository delivers the ADMIN-AUTH-001 shell and ADMIN-KYC-001 review workflow on Astro/Tailwind:
 
 - server-side admin session with the HttpOnly `motodi_admin_session` cookie;
 - login, refresh-on-navigation and logout through the API Gateway;
 - RBAC-filtered navigation for platform admin, support and agency profiles;
-- protected dashboard pages plus `login`, `unauthorized` and `session-expired` pages.
+- protected dashboard pages plus `login`, `unauthorized` and `session-expired` pages;
+- connected KYC review queue, document detail, decision history and validate/reject actions.
 
-The KYC, operations, pricing/SIG, moderation, KPI and agency business screens still use local mock data. Their backend integration remains covered by the follow-up admin tickets.
+The operations, pricing/SIG, moderation, KPI and agency business screens still use local mock data. Their backend integration remains covered by the follow-up admin tickets.
 
 ## Environment
 
