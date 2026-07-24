@@ -1,37 +1,386 @@
 ---
 import AdminLayout from "../layouts/AdminLayout.astro";
-import { kycQueue } from "../lib/mock-data";
+import { AdminApiError } from "../lib/server/api-client";
+import {
+  decideKycProfile,
+  getKycReviewDocuments,
+  listKycReviews
+} from "../lib/server/kyc-service";
+import {
+  canDecideKyc,
+  formatFileSize,
+  formatKycAge,
+  kycProfileTypeOptions,
+  kycReviewQuery,
+  kycStatusOptions,
+  normalizeKycProfileFilter,
+  normalizeKycStatusFilter,
+  selectedKycUrl,
+  validateKycDecisionForm
+} from "../lib/kyc/view-model";
+import type { AdminKycDocumentBundle, AdminKycQueueItem, KycReviewFilters } from "../lib/kyc/types";
+
+const session = Astro.locals.adminSession;
+if (!session) {
+  return Astro.redirect("/login", 302);
+}
+
+let profileType = normalizeKycProfileFilter(Astro.url.searchParams.get("profileType"));
+let status = normalizeKycStatusFilter(Astro.url.searchParams.get("status"));
+let selectedProfileId = Astro.url.searchParams.get("profileId") ?? "";
+let errorMessage = "";
+let successMessage = Astro.url.searchParams.get("decision") === "success"
+  ? "Decision KYC enregistree. Le dossier et la file ont ete recharges."
+  : "";
+const allowedToDecide = canDecideKyc(session);
+
+if (Astro.request.method === "POST") {
+  const form = await Astro.request.formData();
+  profileType = normalizeKycProfileFilter(String(form.get("profileType") ?? ""));
+  status = normalizeKycStatusFilter(String(form.get("status") ?? ""));
+  selectedProfileId = String(form.get("profileId") ?? "").trim();
+  const validation = validateKycDecisionForm({
+    decision: String(form.get("decision") ?? ""),
+    reason: String(form.get("reason") ?? ""),
+    allowed: allowedToDecide
+  });
+
+  if (!selectedProfileId) {
+    errorMessage = "Selectionnez un dossier KYC avant de prendre une decision.";
+  }
+  else if (!validation.ok) {
+    errorMessage = validation.message;
+  }
+  else {
+    try {
+      await decideKycProfile(
+        selectedProfileId,
+        { decision: validation.decision, reason: validation.reason },
+        session.accessToken
+      );
+      const params = new URLSearchParams(kycReviewQuery({ profileType, status }));
+      params.set("profileId", selectedProfileId);
+      params.set("decision", "success");
+      return Astro.redirect(`/kyc?${params.toString()}`, 303);
+    }
+    catch (error) {
+      errorMessage = displayApiError(error);
+    }
+  }
+}
+
+const filters: KycReviewFilters = { profileType, status };
+let queue: AdminKycQueueItem[] = [];
+let detail: AdminKycDocumentBundle | null = null;
+
+try {
+  queue = await listKycReviews(filters, session.accessToken);
+}
+catch (error) {
+  errorMessage ||= displayApiError(error);
+}
+
+if (!selectedProfileId && queue.length > 0) {
+  selectedProfileId = queue[0].profileId;
+}
+
+if (selectedProfileId) {
+  try {
+    detail = await getKycReviewDocuments(selectedProfileId, session.accessToken);
+  }
+  catch (error) {
+    errorMessage ||= displayApiError(error);
+  }
+}
+
+const canDecideSelected = allowedToDecide && detail?.profileValidationStatus === "PENDING";
+
+const profileLabels = {
+  MOTOTAXI: "Mototaxi",
+  TRANSPORTER: "Transporteur"
+};
+const statusLabels = {
+  DRAFT: "Brouillon",
+  PENDING: "En attente",
+  VALIDATED: "Valide",
+  REJECTED: "Rejete",
+  SUSPENDED: "Suspendu"
+};
+const documentLabels = {
+  CNI: "CNI",
+  DRIVER_LICENSE: "Permis",
+  VEHICLE_REGISTRATION: "Carte grise",
+  INSURANCE: "Assurance",
+  PROFILE_PHOTO: "Photo profil",
+  AGENCY_DOCUMENT: "Document agence"
+};
+const documentStatusLabels = {
+  UPLOADED: "Televerse",
+  ENCRYPTED: "Chiffre",
+  PENDING_REVIEW: "A examiner",
+  ACCEPTED: "Accepte",
+  REJECTED: "Rejete",
+  EXPIRED: "Expire"
+};
+const decisionLabels = {
+  VALIDATE: "Validation",
+  REJECT: "Rejet",
+  SUSPEND: "Suspension"
+};
+
+function displayApiError(error: unknown): string {
+  if (error instanceof AdminApiError) {
+    return error.correlationId ? `${error.message} Reference: ${error.correlationId}` : error.message;
+  }
+  return "Le service KYC est indisponible. Veuillez reessayer.";
+}
+
+function formatDate(value: string | null | undefined): string {
+  if (!value) {
+    return "-";
+  }
+  return new Intl.DateTimeFormat("fr-CM", {
+    dateStyle: "medium",
+    timeStyle: "short"
+  }).format(new Date(value));
+}
 ---
 
 <AdminLayout title="Validation KYC" eyebrow="Confiance">
-  <section class="rounded-lg border border-line bg-white shadow-panel">
-    <div class="border-b border-line px-5 py-4">
-      <h3 class="font-semibold">Dossiers en attente</h3>
-      <p class="text-sm text-muted">Validation documentaire conducteurs, transporteurs et agences.</p>
-    </div>
-    <div class="grid gap-4 p-5 lg:grid-cols-3">
-      {
-        kycQueue.map((item) => (
-          <article class="rounded-md border border-line p-4">
-            <div class="flex items-start justify-between gap-3">
-              <div>
-                <p class="font-semibold">{item.id}</p>
-                <p class="text-sm text-muted">{item.profile} - {item.city}</p>
+  <section class="space-y-5">
+    {
+      errorMessage && (
+        <div class="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900" role="alert">
+          {errorMessage}
+        </div>
+      )
+    }
+    {
+      successMessage && (
+        <div class="rounded-md border border-brand-100 bg-brand-50 px-4 py-3 text-sm text-brand-900" role="status">
+          {successMessage}
+        </div>
+      )
+    }
+
+    <form method="get" action="/kyc" class="border-b border-line pb-5">
+      <div class="flex flex-wrap items-end gap-3">
+        <div>
+          <label for="profileType" class="block text-sm font-medium text-ink">Profil</label>
+          <select
+            id="profileType"
+            name="profileType"
+            class="mt-2 rounded-md border border-line bg-white px-3 py-2 text-sm outline-none focus:border-brand-700 focus:ring-2 focus:ring-brand-100"
+          >
+            <option value="" selected={!profileType}>Tous profils</option>
+            {
+              kycProfileTypeOptions.map((option) => (
+                <option value={option} selected={profileType === option}>{profileLabels[option]}</option>
+              ))
+            }
+          </select>
+        </div>
+        <div>
+          <label for="status" class="block text-sm font-medium text-ink">Statut</label>
+          <select
+            id="status"
+            name="status"
+            class="mt-2 rounded-md border border-line bg-white px-3 py-2 text-sm outline-none focus:border-brand-700 focus:ring-2 focus:ring-brand-100"
+          >
+            {
+              kycStatusOptions.map((option) => (
+                <option value={option} selected={status === option}>{statusLabels[option]}</option>
+              ))
+            }
+          </select>
+        </div>
+        <button
+          type="submit"
+          class="rounded-md bg-brand-700 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-900"
+        >
+          Filtrer
+        </button>
+      </div>
+    </form>
+
+    <div class="grid gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
+      <section class="rounded-lg border border-line bg-white shadow-panel">
+        <div class="border-b border-line px-5 py-4">
+          <h3 class="font-semibold">Dossiers</h3>
+          <p class="text-sm text-muted">{queue.length} dossier(s) pour les filtres actifs.</p>
+        </div>
+        <div class="divide-y divide-line">
+          {
+            queue.length === 0 ? (
+              <p class="px-5 py-6 text-sm text-muted">Aucun dossier KYC ne correspond aux filtres.</p>
+            ) : (
+              queue.map((item) => (
+                <a
+                  href={selectedKycUrl(filters, item.profileId)}
+                  class:list={[
+                    "block px-5 py-4 hover:bg-surface",
+                    item.profileId === selectedProfileId ? "bg-brand-50" : "bg-white"
+                  ]}
+                >
+                  <div class="flex items-start justify-between gap-3">
+                    <div>
+                      <p class="font-semibold">{item.displayName}</p>
+                      <p class="text-sm text-muted">{profileLabels[item.profileType]} - {statusLabels[item.profileValidationStatus]}</p>
+                    </div>
+                    <span class="rounded-full bg-surface px-2 py-1 text-xs text-muted">
+                      {formatKycAge(item.oldestPendingDocumentAt)}
+                    </span>
+                  </div>
+                  <p class="mt-3 text-sm">
+                    {item.pendingDocumentsCount} en attente / {item.documentsCount} document(s)
+                  </p>
+                </a>
+              ))
+            )
+          }
+        </div>
+      </section>
+
+      <section class="rounded-lg border border-line bg-white shadow-panel">
+        {
+          !detail ? (
+            <div class="px-5 py-10 text-sm text-muted">Selectionnez un dossier pour examiner ses documents.</div>
+          ) : (
+            <>
+              <div class="border-b border-line px-5 py-4">
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h3 class="font-semibold">{detail.displayName}</h3>
+                    <p class="text-sm text-muted">
+                      {profileLabels[detail.profileType]} - {statusLabels[detail.profileValidationStatus]}
+                    </p>
+                  </div>
+                  <span class="rounded-full bg-surface px-3 py-1 text-sm text-muted">
+                    {detail.documents.length} document(s)
+                  </span>
+                </div>
               </div>
-              <span class="rounded-full bg-surface px-2 py-1 text-xs text-muted">{item.age}</span>
-            </div>
-            <p class="mt-4 text-sm">{item.documents} documents a examiner</p>
-            <div class="mt-4 flex gap-2">
-              <button class="rounded-md bg-brand-700 px-3 py-2 text-sm font-medium text-white">
-                Valider
-              </button>
-              <button class="rounded-md border border-line px-3 py-2 text-sm font-medium">
-                Rejeter avec motif
-              </button>
-            </div>
-          </article>
-        ))
-      }
+
+              <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-line text-left text-sm">
+                  <thead class="bg-surface text-xs uppercase text-muted">
+                    <tr>
+                      <th class="px-5 py-3 font-semibold">Document</th>
+                      <th class="px-5 py-3 font-semibold">Statut</th>
+                      <th class="px-5 py-3 font-semibold">Fichier</th>
+                      <th class="px-5 py-3 font-semibold">Depot</th>
+                      <th class="px-5 py-3 font-semibold">Motif</th>
+                      <th class="px-5 py-3 font-semibold">Acces</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-line">
+                    {
+                      detail.documents.map((document) => (
+                        <tr>
+                          <td class="px-5 py-3 font-medium">{documentLabels[document.type]}</td>
+                          <td class="px-5 py-3">{documentStatusLabels[document.status]}</td>
+                          <td class="px-5 py-3 text-muted">
+                            <span class="block max-w-[220px] truncate">{document.fileName ?? document.id}</span>
+                            <span class="text-xs">{document.mimeType} - {formatFileSize(document.sizeBytes)}</span>
+                          </td>
+                          <td class="px-5 py-3 text-muted">{formatDate(document.uploadedAt)}</td>
+                          <td class="px-5 py-3 text-muted">{document.rejectionReason ?? "-"}</td>
+                          <td class="px-5 py-3">
+                            <a
+                              href={`/api/kyc/documents/${document.id}/content`}
+                              target="_blank"
+                              rel="noreferrer"
+                              class="rounded-md border border-line px-3 py-2 text-sm font-medium hover:bg-surface"
+                            >
+                              Voir
+                            </a>
+                          </td>
+                        </tr>
+                      ))
+                    }
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="grid gap-5 border-t border-line p-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+                <section>
+                  <h4 class="font-semibold">Historique decisions</h4>
+                  <div class="mt-3 divide-y divide-line rounded-md border border-line">
+                    {
+                      detail.decisions.length === 0 ? (
+                        <p class="px-4 py-4 text-sm text-muted">Aucune decision enregistree.</p>
+                      ) : (
+                        detail.decisions.map((decision) => (
+                          <div class="px-4 py-3 text-sm">
+                            <div class="flex flex-wrap items-center justify-between gap-2">
+                              <span class="font-medium">{decisionLabels[decision.decision]}</span>
+                              <span class="text-muted">{formatDate(decision.decidedAt)}</span>
+                            </div>
+                            <p class="mt-1 text-muted">Admin: {decision.adminProfileId ?? "non renseigne"}</p>
+                            {decision.reason && <p class="mt-1">{decision.reason}</p>}
+                          </div>
+                        ))
+                      )
+                    }
+                  </div>
+                </section>
+
+                <aside>
+                  <h4 class="font-semibold">Decision</h4>
+                  {
+                    !allowedToDecide ? (
+                      <p class="mt-3 rounded-md border border-line bg-surface px-4 py-3 text-sm text-muted">
+                        Votre session ne contient pas la permission KYC_DECIDE.
+                      </p>
+                    ) : !canDecideSelected ? (
+                      <p class="mt-3 rounded-md border border-line bg-surface px-4 py-3 text-sm text-muted">
+                        Une decision est possible uniquement sur un profil en attente.
+                      </p>
+                    ) : (
+                      <div class="mt-3 space-y-4">
+                        <form method="post">
+                          <input type="hidden" name="profileId" value={detail.profileId} />
+                          <input type="hidden" name="profileType" value={profileType ?? ""} />
+                          <input type="hidden" name="status" value={status} />
+                          <button
+                            type="submit"
+                            name="decision"
+                            value="VALIDATE"
+                            class="w-full rounded-md bg-brand-700 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-900"
+                          >
+                            Valider le profil
+                          </button>
+                        </form>
+                        <form method="post" class="space-y-3">
+                          <input type="hidden" name="profileId" value={detail.profileId} />
+                          <input type="hidden" name="profileType" value={profileType ?? ""} />
+                          <input type="hidden" name="status" value={status} />
+                          <label for="reason" class="block text-sm font-medium text-ink">Motif de rejet</label>
+                          <textarea
+                            id="reason"
+                            name="reason"
+                            required
+                            rows="4"
+                            class="w-full rounded-md border border-line px-3 py-2 text-sm outline-none focus:border-brand-700 focus:ring-2 focus:ring-brand-100"
+                          ></textarea>
+                          <button
+                            type="submit"
+                            name="decision"
+                            value="REJECT"
+                            class="w-full rounded-md border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-900 hover:bg-red-100"
+                          >
+                            Rejeter le profil
+                          </button>
+                        </form>
+                      </div>
+                    )
+                  }
+                </aside>
+              </div>
+            </>
+          )
+        }
+      </section>
     </div>
   </section>
 </AdminLayout>
