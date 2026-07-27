@@ -1,5 +1,5 @@
 import type { AdminSession, ValidationStatus } from "../auth/types";
-import type { KycDecision, KycReviewFilters, KycReviewProfileType } from "./types";
+import type { AdminKycDocument, KycDecision, KycReviewFilters, KycReviewProfileType } from "./types";
 
 export const kycProfileTypeOptions: KycReviewProfileType[] = ["MOTOTAXI", "TRANSPORTER"];
 export const kycStatusOptions: ValidationStatus[] = ["PENDING", "VALIDATED", "REJECTED", "SUSPENDED", "DRAFT"];
@@ -16,6 +16,18 @@ export function normalizeKycStatusFilter(value: string | null | undefined): Vali
 
 export function canDecideKyc(session: Pick<AdminSession, "permissions"> | null | undefined): boolean {
   return Boolean(session?.permissions.includes("KYC_DECIDE"));
+}
+
+export function canDecideKycDocument({
+  session,
+  profileStatus,
+  document
+}: {
+  session: Pick<AdminSession, "permissions"> | null | undefined;
+  profileStatus: ValidationStatus | null | undefined;
+  document: Pick<AdminKycDocument, "status"> | null | undefined;
+}): boolean {
+  return canDecideKyc(session) && profileStatus === "PENDING" && document?.status === "PENDING_REVIEW";
 }
 
 export function validateKycDecisionForm({

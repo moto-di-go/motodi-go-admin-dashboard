@@ -2,12 +2,14 @@
 import AdminLayout from "../layouts/AdminLayout.astro";
 import { AdminApiError } from "../lib/server/api-client";
 import {
+  decideKycDocument,
   decideKycProfile,
   getKycReviewDocuments,
   listKycReviews
 } from "../lib/server/kyc-service";
 import {
   canDecideKyc,
+  canDecideKycDocument,
   formatFileSize,
   formatKycAge,
   kycProfileTypeOptions,
@@ -29,9 +31,13 @@ let profileType = normalizeKycProfileFilter(Astro.url.searchParams.get("profileT
 let status = normalizeKycStatusFilter(Astro.url.searchParams.get("status"));
 let selectedProfileId = Astro.url.searchParams.get("profileId") ?? "";
 let errorMessage = "";
-let successMessage = Astro.url.searchParams.get("decision") === "success"
-  ? "Decision KYC enregistree. Le dossier et la file ont ete recharges."
-  : "";
+let successMessage = "";
+if (Astro.url.searchParams.get("decision") === "success") {
+  successMessage = "Decision KYC enregistree. Le dossier et la file ont ete recharges.";
+}
+if (Astro.url.searchParams.get("documentDecision") === "success") {
+  successMessage = "Decision documentaire enregistree. Le dossier et la file ont ete recharges.";
+}
 const allowedToDecide = canDecideKyc(session);
 
 if (Astro.request.method === "POST") {
@@ -39,6 +45,7 @@ if (Astro.request.method === "POST") {
   profileType = normalizeKycProfileFilter(String(form.get("profileType") ?? ""));
   status = normalizeKycStatusFilter(String(form.get("status") ?? ""));
   selectedProfileId = String(form.get("profileId") ?? "").trim();
+  const documentId = String(form.get("documentId") ?? "").trim();
   const validation = validateKycDecisionForm({
     decision: String(form.get("decision") ?? ""),
     reason: String(form.get("reason") ?? ""),
@@ -48,19 +55,31 @@ if (Astro.request.method === "POST") {
   if (!selectedProfileId) {
     errorMessage = "Selectionnez un dossier KYC avant de prendre une decision.";
   }
+  else if (documentId === "" && String(form.get("scope") ?? "") === "document") {
+    errorMessage = "Selectionnez un document KYC avant de prendre une decision.";
+  }
   else if (!validation.ok) {
     errorMessage = validation.message;
   }
   else {
     try {
-      await decideKycProfile(
-        selectedProfileId,
-        { decision: validation.decision, reason: validation.reason },
-        session.accessToken
-      );
+      if (documentId) {
+        await decideKycDocument(
+          documentId,
+          { decision: validation.decision, reason: validation.reason },
+          session.accessToken
+        );
+      }
+      else {
+        await decideKycProfile(
+          selectedProfileId,
+          { decision: validation.decision, reason: validation.reason },
+          session.accessToken
+        );
+      }
       const params = new URLSearchParams(kycReviewQuery({ profileType, status }));
       params.set("profileId", selectedProfileId);
-      params.set("decision", "success");
+      params.set(documentId ? "documentDecision" : "decision", "success");
       return Astro.redirect(`/kyc?${params.toString()}`, 303);
     }
     catch (error) {
@@ -286,14 +305,13 @@ function formatDate(value: string | null | undefined): string {
                           <td class="px-5 py-3 text-muted">{formatDate(document.uploadedAt)}</td>
                           <td class="px-5 py-3 text-muted">{document.rejectionReason ?? "-"}</td>
                           <td class="px-5 py-3">
-                            <a
-                              href={`/api/kyc/documents/${document.id}/content`}
-                              target="_blank"
-                              rel="noreferrer"
+                            <button
+                              type="button"
+                              data-open-document={document.id}
                               class="rounded-md border border-line px-3 py-2 text-sm font-medium hover:bg-surface"
                             >
-                              Voir
-                            </a>
+                              Examiner
+                            </button>
                           </td>
                         </tr>
                       ))
@@ -302,12 +320,133 @@ function formatDate(value: string | null | undefined): string {
                 </table>
               </div>
 
+              <div>
+                {
+                  detail.documents.map((document) => {
+                    const documentActionAllowed = canDecideKycDocument({
+                      session,
+                      profileStatus: detail.profileValidationStatus,
+                      document
+                    });
+                    const previewUrl = `/api/kyc/documents/${document.id}/content`;
+                    const isImage = document.mimeType.startsWith("image/");
+                    const isPdf = document.mimeType === "application/pdf";
+                    return (
+                      <dialog
+                        id={`document-dialog-${document.id}`}
+                        class="w-[min(960px,calc(100vw-2rem))] rounded-lg border border-line bg-white p-0 shadow-panel backdrop:bg-ink/40"
+                      >
+                        <div class="border-b border-line px-5 py-4">
+                          <div class="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <h4 class="font-semibold">{documentLabels[document.type]}</h4>
+                              <p class="text-sm text-muted">
+                                {document.fileName ?? document.id} - {documentStatusLabels[document.status]}
+                              </p>
+                            </div>
+                            <form method="dialog">
+                              <button
+                                type="submit"
+                                class="rounded-md border border-line px-3 py-2 text-sm font-medium hover:bg-surface"
+                              >
+                                Fermer
+                              </button>
+                            </form>
+                          </div>
+                        </div>
+                        <div class="grid gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+                          <div class="min-h-[420px] overflow-hidden rounded-md border border-line bg-surface">
+                            {
+                              isImage ? (
+                                <img
+                                  src={previewUrl}
+                                  alt={`Document ${documentLabels[document.type]}`}
+                                  class="h-full max-h-[70vh] w-full object-contain"
+                                />
+                              ) : isPdf ? (
+                                <iframe
+                                  src={previewUrl}
+                                  title={`Document ${documentLabels[document.type]}`}
+                                  class="h-[70vh] w-full"
+                                />
+                              ) : (
+                                <div class="flex h-[420px] items-center justify-center p-6 text-center text-sm text-muted">
+                                  Apercu indisponible pour ce format. Ouvrez le document via le proxy securise.
+                                </div>
+                              )
+                            }
+                          </div>
+                          <aside class="space-y-4">
+                            <div class="rounded-md border border-line bg-surface px-4 py-3 text-sm text-muted">
+                              <p>Type: {documentLabels[document.type]}</p>
+                              <p>Statut: {documentStatusLabels[document.status]}</p>
+                              <p>Taille: {formatFileSize(document.sizeBytes)}</p>
+                              <p>Depot: {formatDate(document.uploadedAt)}</p>
+                            </div>
+                            {
+                              !documentActionAllowed ? (
+                                <p class="rounded-md border border-line bg-surface px-4 py-3 text-sm text-muted">
+                                  Action disponible uniquement sur un document en attente avec KYC_DECIDE.
+                                </p>
+                              ) : (
+                                <div class="space-y-4">
+                                  <form method="post">
+                                    <input type="hidden" name="scope" value="document" />
+                                    <input type="hidden" name="profileId" value={detail.profileId} />
+                                    <input type="hidden" name="documentId" value={document.id} />
+                                    <input type="hidden" name="profileType" value={profileType ?? ""} />
+                                    <input type="hidden" name="status" value={status} />
+                                    <button
+                                      type="submit"
+                                      name="decision"
+                                      value="VALIDATE"
+                                      class="w-full rounded-md bg-brand-700 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-900"
+                                    >
+                                      Valider ce document
+                                    </button>
+                                  </form>
+                                  <form method="post" class="space-y-3">
+                                    <input type="hidden" name="scope" value="document" />
+                                    <input type="hidden" name="profileId" value={detail.profileId} />
+                                    <input type="hidden" name="documentId" value={document.id} />
+                                    <input type="hidden" name="profileType" value={profileType ?? ""} />
+                                    <input type="hidden" name="status" value={status} />
+                                    <label for={`document-reason-${document.id}`} class="block text-sm font-medium text-ink">
+                                      Motif de rejet
+                                    </label>
+                                    <textarea
+                                      id={`document-reason-${document.id}`}
+                                      name="reason"
+                                      required
+                                      rows="4"
+                                      class="w-full rounded-md border border-line px-3 py-2 text-sm outline-none focus:border-brand-700 focus:ring-2 focus:ring-brand-100"
+                                    ></textarea>
+                                    <button
+                                      type="submit"
+                                      name="decision"
+                                      value="REJECT"
+                                      class="w-full rounded-md border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-900 hover:bg-red-100"
+                                    >
+                                      Rejeter ce document
+                                    </button>
+                                  </form>
+                                </div>
+                              )
+                            }
+                          </aside>
+                        </div>
+                      </dialog>
+                    );
+                  })
+                }
+              </div>
+
               <div class="grid gap-5 border-t border-line p-5 lg:grid-cols-[minmax(0,1fr)_320px]">
                 <section>
                   <h4 class="font-semibold">Historique decisions</h4>
                   <div class="mt-3 divide-y divide-line rounded-md border border-line">
                     {
-                      detail.decisions.length === 0 ? (
+                      detail.decisions.length === 0 && detail.documentDecisions.length === 0 ? (
                         <p class="px-4 py-4 text-sm text-muted">Aucune decision enregistree.</p>
                       ) : (
                         detail.decisions.map((decision) => (
@@ -321,6 +460,22 @@ function formatDate(value: string | null | undefined): string {
                           </div>
                         ))
                       )
+                    }
+                    {
+                      detail.documentDecisions.map((decision) => (
+                        <div class="px-4 py-3 text-sm">
+                          <div class="flex flex-wrap items-center justify-between gap-2">
+                            <span class="font-medium">
+                              Document {documentLabels[decision.documentType]} - {decisionLabels[decision.decision]}
+                            </span>
+                            <span class="text-muted">{formatDate(decision.decidedAt)}</span>
+                          </div>
+                          <p class="mt-1 text-muted">
+                            Admin: {decision.adminProfileId ?? "non renseigne"} - {decision.fileName ?? decision.documentId ?? "document supprime"}
+                          </p>
+                          {decision.reason && <p class="mt-1">{decision.reason}</p>}
+                        </div>
+                      ))
                     }
                   </div>
                 </section>
@@ -383,4 +538,17 @@ function formatDate(value: string | null | undefined): string {
       </section>
     </div>
   </section>
+
+  <script>
+    document.querySelectorAll("[data-open-document]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const documentId = button.getAttribute("data-open-document");
+        if (!documentId) return;
+        const dialog = document.getElementById(`document-dialog-${documentId}`);
+        if (dialog instanceof HTMLDialogElement) {
+          dialog.showModal();
+        }
+      });
+    });
+  </script>
 </AdminLayout>

@@ -4,6 +4,7 @@ import { kycReviewQuery } from "../kyc/view-model";
 import type {
   AdminKycDecisionRequest,
   AdminKycDecisionResponse,
+  AdminKycDocumentDecisionResponse,
   AdminKycDocumentBundle,
   AdminKycQueueItem,
   DownloadedKycDocumentContent,
@@ -38,6 +39,21 @@ export function decideKycProfile(
     body: request,
     accessToken
   });
+}
+
+export function decideKycDocument(
+  documentId: string,
+  request: AdminKycDecisionRequest,
+  accessToken: string
+): Promise<AdminKycDocumentDecisionResponse> {
+  return apiRequest<AdminKycDocumentDecisionResponse>(
+    `/admin/kyc/documents/${encodeURIComponent(documentId)}/decision`,
+    {
+      method: "POST",
+      body: request,
+      accessToken
+    }
+  );
 }
 
 export async function downloadKycDocumentContent(
