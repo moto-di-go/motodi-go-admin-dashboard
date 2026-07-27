@@ -55,6 +55,20 @@ export interface AdminKycDecisionRecord {
   decidedAt: string;
 }
 
+export interface AdminKycDocumentDecisionRecord {
+  id: string;
+  profileId: string;
+  documentId: string | null;
+  documentType: KycDocumentType;
+  fileName: string | null;
+  mimeType: string | null;
+  sizeBytes: number;
+  decision: KycDecision;
+  reason: string | null;
+  adminProfileId: string | null;
+  decidedAt: string;
+}
+
 export interface AdminKycDocumentBundle {
   profileId: string;
   profileType: KycReviewProfileType;
@@ -62,6 +76,7 @@ export interface AdminKycDocumentBundle {
   displayName: string;
   documents: AdminKycDocument[];
   decisions: AdminKycDecisionRecord[];
+  documentDecisions: AdminKycDocumentDecisionRecord[];
 }
 
 export interface AdminKycDecisionRequest {
@@ -74,6 +89,14 @@ export interface AdminKycDecisionResponse {
   profileValidationStatus: ValidationStatus;
   decision: KycDecision;
   decisionRecord: AdminKycDecisionRecord;
+}
+
+export interface AdminKycDocumentDecisionResponse {
+  profileId: string;
+  documentId: string;
+  profileValidationStatus: ValidationStatus;
+  decision: KycDecision;
+  decisionRecord: AdminKycDocumentDecisionRecord;
 }
 
 export interface DownloadedKycDocumentContent {

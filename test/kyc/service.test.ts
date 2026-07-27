@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { decideKycProfile, listKycReviews } from "../../src/lib/server/kyc-service";
+import { decideKycDocument, decideKycProfile, listKycReviews } from "../../src/lib/server/kyc-service";
 
 describe("KYC server service", () => {
   afterEach(() => {
@@ -39,6 +39,36 @@ describe("KYC server service", () => {
     expect(init?.method).toBe("POST");
     expect((init?.headers as Headers).get("Authorization")).toBe("Bearer access-token");
     expect(init?.body).toBe(JSON.stringify({ decision: "REJECT", reason: "Photo illisible" }));
+  });
+
+  it("posts document KYC decisions with the expected payload", async () => {
+    const fetchMock = mockJsonResponse({
+      profileId: "profile-1",
+      documentId: "document-1",
+      profileValidationStatus: "PENDING",
+      decision: "VALIDATE",
+      decisionRecord: {
+        id: "document-decision-1",
+        profileId: "profile-1",
+        documentId: "document-1",
+        documentType: "CNI",
+        fileName: "cni.pdf",
+        mimeType: "application/pdf",
+        sizeBytes: 2048,
+        decision: "VALIDATE",
+        reason: null,
+        adminProfileId: "admin-1",
+        decidedAt: new Date(0).toISOString()
+      }
+    });
+
+    await decideKycDocument("document-1", { decision: "VALIDATE", reason: null }, "access-token");
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("http://localhost:8080/api/v1/admin/kyc/documents/document-1/decision");
+    expect(init?.method).toBe("POST");
+    expect((init?.headers as Headers).get("Authorization")).toBe("Bearer access-token");
+    expect(init?.body).toBe(JSON.stringify({ decision: "VALIDATE", reason: null }));
   });
 });
 
