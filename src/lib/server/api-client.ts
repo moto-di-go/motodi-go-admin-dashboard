@@ -163,6 +163,15 @@ function displayMessage(status: number, errorCode: string): string {
   if (status === 429 || errorCode === "RATE_LIMITED" || errorCode === "OTP_RATE_LIMITED") {
     return "Trop de tentatives. Veuillez reessayer plus tard.";
   }
+  if (status === 409 || errorCode === "PHOTON_UPDATE_IN_PROGRESS") {
+    return "Une mise a jour Photon est deja en cours.";
+  }
+  if (errorCode === "PHOTON_DISABLED") {
+    return "Photon n'est pas active sur cet environnement.";
+  }
+  if (errorCode === "PHOTON_UPDATE_UNAVAILABLE") {
+    return "Le controleur Photon n'est pas disponible.";
+  }
   if (status >= 500 || errorCode === "API_UNAVAILABLE") {
     return "Service momentanement indisponible. Veuillez reessayer.";
   }

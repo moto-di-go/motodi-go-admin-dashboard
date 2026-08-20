@@ -125,14 +125,20 @@ const statusLabels = {
   REJECTED: "Rejete",
   SUSPENDED: "Suspendu"
 };
-const documentLabels = {
+const documentLabels: Record<string, string> = {
   CNI: "CNI",
   DRIVER_LICENSE: "Permis",
   VEHICLE_REGISTRATION: "Carte grise",
   INSURANCE: "Assurance",
   PROFILE_PHOTO: "Photo profil",
-  AGENCY_DOCUMENT: "Document agence"
+  AGENCY_DOCUMENT: "Document agence",
+  VEHICLE_PHOTO: "Photo du véhicule"
 };
+
+function documentLabel(type: string | null | undefined): string {
+  if (!type) return "Document";
+  return documentLabels[type] ?? type;
+}
 const documentStatusLabels = {
   UPLOADED: "Televerse",
   ENCRYPTED: "Chiffre",
@@ -285,6 +291,7 @@ function formatDate(value: string | null | undefined): string {
                   <thead class="bg-surface text-xs uppercase text-muted">
                     <tr>
                       <th class="px-5 py-3 font-semibold">Document</th>
+                      <th class="px-5 py-3 font-semibold">Vehicule</th>
                       <th class="px-5 py-3 font-semibold">Statut</th>
                       <th class="px-5 py-3 font-semibold">Fichier</th>
                       <th class="px-5 py-3 font-semibold">Depot</th>
@@ -296,7 +303,10 @@ function formatDate(value: string | null | undefined): string {
                     {
                       detail.documents.map((document) => (
                         <tr>
-                          <td class="px-5 py-3 font-medium">{documentLabels[document.type]}</td>
+                          <td class="px-5 py-3 font-medium">{documentLabel(document.type)}</td>
+                          <td class="px-5 py-3 text-muted text-xs font-mono">
+                            {document.vehicleId ? document.vehicleId.slice(0, 8) + "…" : "-"}
+                          </td>
                           <td class="px-5 py-3">{documentStatusLabels[document.status]}</td>
                           <td class="px-5 py-3 text-muted">
                             <span class="block max-w-[220px] truncate">{document.fileName ?? document.id}</span>
@@ -339,7 +349,7 @@ function formatDate(value: string | null | undefined): string {
                         <div class="border-b border-line px-5 py-4">
                           <div class="flex flex-wrap items-start justify-between gap-3">
                             <div>
-                              <h4 class="font-semibold">{documentLabels[document.type]}</h4>
+                              <h4 class="font-semibold">{documentLabel(document.type)}</h4>
                               <p class="text-sm text-muted">
                                 {document.fileName ?? document.id} - {documentStatusLabels[document.status]}
                               </p>
@@ -360,13 +370,13 @@ function formatDate(value: string | null | undefined): string {
                               isImage ? (
                                 <img
                                   src={previewUrl}
-                                  alt={`Document ${documentLabels[document.type]}`}
+                                  alt={`Document ${documentLabel(document.type)}`}
                                   class="h-full max-h-[70vh] w-full object-contain"
                                 />
                               ) : isPdf ? (
                                 <iframe
                                   src={previewUrl}
-                                  title={`Document ${documentLabels[document.type]}`}
+                                  title={`Document ${documentLabel(document.type)}`}
                                   class="h-[70vh] w-full"
                                 />
                               ) : (
@@ -378,8 +388,9 @@ function formatDate(value: string | null | undefined): string {
                           </div>
                           <aside class="space-y-4">
                             <div class="rounded-md border border-line bg-surface px-4 py-3 text-sm text-muted">
-                              <p>Type: {documentLabels[document.type]}</p>
+                              <p>Type: {documentLabel(document.type)}</p>
                               <p>Statut: {documentStatusLabels[document.status]}</p>
+                              <p>Vehicule: {document.vehicleId ?? "-"}</p>
                               <p>Taille: {formatFileSize(document.sizeBytes)}</p>
                               <p>Depot: {formatDate(document.uploadedAt)}</p>
                             </div>
@@ -466,7 +477,7 @@ function formatDate(value: string | null | undefined): string {
                         <div class="px-4 py-3 text-sm">
                           <div class="flex flex-wrap items-center justify-between gap-2">
                             <span class="font-medium">
-                              Document {documentLabels[decision.documentType]} - {decisionLabels[decision.decision]}
+                              Document {documentLabel(decision.documentType)} - {decisionLabels[decision.decision]}
                             </span>
                             <span class="text-muted">{formatDate(decision.decidedAt)}</span>
                           </div>

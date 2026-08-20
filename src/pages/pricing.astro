@@ -1,10 +1,129 @@
 ---
 import AdminLayout from "../layouts/AdminLayout.astro";
-import { pricingRules } from "../lib/mock-data";
+import { AdminApiError } from "../lib/server/api-client";
+import { getPhotonIndexStatus, startPhotonIndexUpdate, type PhotonIndexStatus } from "../lib/server/photon-service";
+import { createGisLayer, createPricingRule, listGisLayers, listPricingRules } from "../lib/server/pricing-service";
+
+const session = Astro.locals.adminSession;
+const canWritePricing = session?.permissions.includes("PRICING_WRITE") ?? false;
+const canWriteGis = session?.permissions.includes("GIS_WRITE") ?? false;
+
+let rules = [];
+let layers = [];
+let photonStatus: PhotonIndexStatus | null = null;
+let errorMessage = "";
+let successMessage = "";
+
+if (session) {
+  if (Astro.request.method === "POST") {
+    const form = await Astro.request.formData();
+    const intent = String(form.get("intent") ?? "");
+    try {
+      if (intent === "create-rule" && canWritePricing) {
+        await createPricingRule(
+          {
+            zoneCode: String(form.get("zoneCode") ?? "CM-CE-YDE"),
+            zoneWkt: String(form.get("zoneWkt") ?? "") || null,
+            timeStart: String(form.get("timeStart") ?? "00:00:00"),
+            timeEnd: String(form.get("timeEnd") ?? "23:59:59"),
+            baseFare: Number(form.get("baseFare") ?? 500),
+            pricePerKm: Number(form.get("pricePerKm") ?? 35),
+            nightCoefficient: Number(form.get("nightCoefficient") ?? 1.25),
+            weatherCoefficient: Number(form.get("weatherCoefficient") ?? 1.15),
+            active: true
+          },
+          session.accessToken
+        );
+        successMessage = "Regle tarifaire enregistree.";
+      }
+      if (intent === "create-layer" && canWriteGis) {
+        await createGisLayer(
+          {
+            type: String(form.get("layerType") ?? "ROADWORK"),
+            label: String(form.get("layerLabel") ?? "Couche SIG"),
+            geometryWkt: String(form.get("geometryWkt") ?? ""),
+            severity: String(form.get("severity") ?? "MEDIUM"),
+            active: true,
+            source: "admin-dashboard"
+          },
+          session.accessToken
+        );
+        successMessage = "Couche SIG publiee.";
+      }
+      if (intent === "update-photon" && canWriteGis) {
+        const update = await startPhotonIndexUpdate(session.accessToken);
+        successMessage = update.message;
+      }
+    } catch (error) {
+      errorMessage = error instanceof AdminApiError ? error.message : "Impossible d'enregistrer la modification.";
+    }
+  }
+
+  try {
+    const [loadedRules, loadedLayers, loadedPhoton] = await Promise.all([
+      listPricingRules(session.accessToken),
+      listGisLayers(session.accessToken),
+      getPhotonIndexStatus(session.accessToken).catch(() => null)
+    ]);
+    rules = loadedRules;
+    layers = loadedLayers;
+    photonStatus = loadedPhoton;
+  } catch (error) {
+    errorMessage = error instanceof AdminApiError ? error.message : "Impossible de charger les regles SIG.";
+  }
+}
 ---
 
 <AdminLayout title="Parametrage tarifaire" eyebrow="SIG et tarifs">
-  <div class="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+  {errorMessage && <p class="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{errorMessage}</p>}
+  {successMessage && <p class="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{successMessage}</p>}
+
+  {
+    photonStatus && (
+      <section class="mb-6 rounded-lg border border-line bg-white p-5 shadow-panel">
+        <div class="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h3 class="font-semibold">Index Photon</h3>
+            <p class="mt-1 text-sm text-muted">
+              Autocomplete adresses OSM. Les mises a jour automatiques sont desactivees : lancer un dump
+              uniquement quand vous en avez besoin (~1.7 Go, 15 a 40 min).
+            </p>
+            <p class="mt-3 text-sm">
+              <span
+                class:list={[
+                  "inline-flex rounded-full px-2 py-1 text-xs font-semibold",
+                  photonStatus.updating
+                    ? "bg-amber-50 text-amber-800"
+                    : photonStatus.ready
+                      ? "bg-emerald-50 text-emerald-800"
+                      : "bg-slate-100 text-slate-700"
+                ]}
+              >
+                {photonStatus.updating ? "Mise a jour en cours" : photonStatus.ready ? "Pret" : "Indisponible"}
+              </span>
+              <span class="ml-2 text-muted">{photonStatus.message}</span>
+            </p>
+          </div>
+          {
+            canWriteGis && photonStatus.manualUpdateAvailable && (
+              <form method="post">
+                <input type="hidden" name="intent" value="update-photon" />
+                <button
+                  class="rounded bg-brand-700 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
+                  type="submit"
+                  disabled={photonStatus.updating}
+                >
+                  {photonStatus.updating ? "Telechargement en cours..." : "Mettre a jour Photon"}
+                </button>
+              </form>
+            )
+          }
+        </div>
+      </section>
+    )
+  }
+
+  <div class="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
     <section class="rounded-lg border border-line bg-white shadow-panel">
       <div class="border-b border-line px-5 py-4">
         <h3 class="font-semibold">Regles actives</h3>
@@ -17,36 +136,123 @@ import { pricingRules } from "../lib/mock-data";
               <th class="px-5 py-3">Zone</th>
               <th class="px-5 py-3">Creneau</th>
               <th class="px-5 py-3">Base</th>
-              <th class="px-5 py-3">Coeff.</th>
+              <th class="px-5 py-3">/km</th>
+              <th class="px-5 py-3">Nuit</th>
+              <th class="px-5 py-3">Meteo</th>
             </tr>
           </thead>
           <tbody>
             {
-              pricingRules.map((item) => (
+              rules.map((item) => (
                 <tr class="border-t border-line">
-                  <td class="px-5 py-4 font-medium">{item.zone}</td>
-                  <td class="px-5 py-4">{item.window}</td>
-                  <td class="px-5 py-4">{item.base}</td>
-                  <td class="px-5 py-4">{item.coefficient}</td>
+                  <td class="px-5 py-4 font-medium">{item.zoneCode}</td>
+                  <td class="px-5 py-4">{item.timeStart} - {item.timeEnd}</td>
+                  <td class="px-5 py-4">{item.baseFare} FCFA</td>
+                  <td class="px-5 py-4">{item.pricePerKm}</td>
+                  <td class="px-5 py-4">x{item.nightCoefficient}</td>
+                  <td class="px-5 py-4">x{item.weatherCoefficient}</td>
                 </tr>
               ))
             }
           </tbody>
         </table>
       </div>
+      {
+        canWritePricing && (
+          <form method="post" class="grid gap-3 border-t border-line p-5 md:grid-cols-2">
+            <input type="hidden" name="intent" value="create-rule" />
+            <input type="hidden" id="zoneWkt" name="zoneWkt" />
+            <label class="text-sm">Zone
+              <input class="mt-1 w-full rounded border border-line px-3 py-2" name="zoneCode" value="CM-CE-YDE" />
+            </label>
+            <label class="text-sm">Base FCFA
+              <input class="mt-1 w-full rounded border border-line px-3 py-2" name="baseFare" type="number" value="500" />
+            </label>
+            <label class="text-sm">Prix / km
+              <input class="mt-1 w-full rounded border border-line px-3 py-2" name="pricePerKm" type="number" value="35" />
+            </label>
+            <label class="text-sm">Coeff. nuit
+              <input class="mt-1 w-full rounded border border-line px-3 py-2" name="nightCoefficient" type="number" step="0.01" value="1.25" />
+            </label>
+            <button class="rounded bg-brand-700 px-4 py-2 text-sm font-medium text-white md:col-span-2" type="submit">
+              Enregistrer la regle (polygone carte optionnel)
+            </button>
+          </form>
+        )
+      }
     </section>
 
     <section class="rounded-lg border border-line bg-white p-5 shadow-panel">
-      <h3 class="font-semibold">Couches SIG</h3>
-      <p class="mt-2 text-sm text-muted">
-        Placeholder pour previsualisation cartes trafic, travaux, routes degradees et alternatives.
-      </p>
-      <div class="mt-5 aspect-video rounded-md border border-dashed border-line bg-surface p-4">
-        <div class="h-full rounded bg-white p-4 text-sm text-muted">
-          Carte admin a connecter a Mapbox ou OpenStreetMap.
-        </div>
-      </div>
+      <h3 class="font-semibold">Couches SIG Yaounde</h3>
+      <p class="mt-2 text-sm text-muted">Dessinez un polygone (zone tarifaire) ou une ligne (trafic) sur la carte OSM.</p>
+      <div id="admin-map" class="mt-4 h-80 overflow-hidden rounded-md border border-line"></div>
+      <p id="draw-status" class="mt-2 text-xs text-muted">Outil: polygone. Cliquez pour dessiner, double-clic pour terminer.</p>
+      <ul class="mt-4 space-y-2 text-sm">
+        {
+          layers.map((layer) => (
+            <li class="rounded border border-line px-3 py-2">
+              <strong>{layer.label}</strong> · {layer.type} · {layer.severity}
+            </li>
+          ))
+        }
+      </ul>
+      {
+        canWriteGis && (
+          <form method="post" class="mt-4 grid gap-3">
+            <input type="hidden" name="intent" value="create-layer" />
+            <input type="hidden" id="geometryWkt" name="geometryWkt" required />
+            <label class="text-sm">Libelle
+              <input class="mt-1 w-full rounded border border-line px-3 py-2" name="layerLabel" required />
+            </label>
+            <label class="text-sm">Type
+              <select class="mt-1 w-full rounded border border-line px-3 py-2" name="layerType">
+                <option value="CONGESTION">CONGESTION</option>
+                <option value="ROADWORK">ROADWORK</option>
+                <option value="DAMAGED_ROAD">DAMAGED_ROAD</option>
+                <option value="ALTERNATIVE_ROUTE">ALTERNATIVE_ROUTE</option>
+              </select>
+            </label>
+            <label class="text-sm">Severite
+              <select class="mt-1 w-full rounded border border-line px-3 py-2" name="severity">
+                <option>LOW</option>
+                <option selected>MEDIUM</option>
+                <option>HIGH</option>
+                <option>CRITICAL</option>
+              </select>
+            </label>
+            <button class="rounded bg-brand-700 px-4 py-2 text-sm font-medium text-white" type="submit">
+              Publier la couche dessinee
+            </button>
+          </form>
+        )
+      }
     </section>
   </div>
 </AdminLayout>
 
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script is:inline src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script is:inline>
+  const map = L.map("admin-map").setView([3.868, 11.516], 13);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: "&copy; OpenStreetMap"
+  }).addTo(map);
+  const drawn = [];
+  const status = document.getElementById("draw-status");
+  map.on("click", (event) => {
+    drawn.push([event.latlng.lng, event.latlng.lat]);
+    L.circleMarker(event.latlng, { radius: 5, color: "#15803d" }).addTo(map);
+    if (drawn.length > 1) {
+      L.polyline(drawn.map((point) => [point[1], point[0]]), { color: "#15803d" }).addTo(map);
+    }
+    const wktLine = "LINESTRING(" + drawn.map((point) => point[0] + " " + point[1]).join(", ") + ")";
+    const wktPoly = drawn.length > 2
+      ? "POLYGON((" + drawn.concat([drawn[0]]).map((point) => point[0] + " " + point[1]).join(", ") + "))"
+      : "";
+    const geometry = document.getElementById("geometryWkt");
+    const zone = document.getElementById("zoneWkt");
+    if (geometry) geometry.value = wktLine;
+    if (zone && wktPoly) zone.value = wktPoly;
+    if (status) status.textContent = drawn.length + " point(s). Ligne = couche trafic, polygone = zone tarifaire.";
+  });
+</script>
