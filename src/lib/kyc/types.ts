@@ -15,7 +15,8 @@ export type KycDocumentType =
   | "VEHICLE_REGISTRATION"
   | "INSURANCE"
   | "PROFILE_PHOTO"
-  | "AGENCY_DOCUMENT";
+  | "AGENCY_DOCUMENT"
+  | "VEHICLE_PHOTO";
 
 export interface KycReviewFilters {
   profileType?: KycReviewProfileType;

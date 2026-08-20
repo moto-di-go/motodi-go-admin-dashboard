@@ -44,6 +44,16 @@ describe("admin API client", () => {
       status: 429,
       message: "Trop de tentatives. Veuillez reessayer plus tard."
     });
+
+    mockFetchResponse(409, {
+      errorCode: "PHOTON_UPDATE_IN_PROGRESS",
+      message: "internal"
+    });
+
+    await expect(apiRequest("/admin/gis/photon/update", { method: "POST" })).rejects.toMatchObject({
+      status: 409,
+      message: "Une mise a jour Photon est deja en cours."
+    });
   });
 
   it("normalizes network errors", async () => {
