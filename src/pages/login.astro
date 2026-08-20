@@ -1,0 +1,108 @@
+---
+import AuthLayout from "../layouts/AuthLayout.astro";
+import { resolvePostLoginPath, sanitizeNextPath } from "../lib/auth/rbac";
+import { authenticateAdmin, AdminAuthError } from "../lib/auth/service";
+import { getStoredAdminSession, saveStoredAdminSession } from "../lib/auth/session";
+
+let errorMessage = "";
+let correlationId = "";
+let phoneNumber = "";
+const nextPath = sanitizeNextPath(Astro.url.searchParams.get("next"));
+
+const currentSession = await getStoredAdminSession(Astro.session);
+if (Astro.request.method === "GET" && currentSession) {
+  const redirectPath = resolvePostLoginPath(nextPath, currentSession);
+  void redirectPath;
+  return Astro.redirect(redirectPath, 302);
+}
+
+if (Astro.request.method === "POST") {
+  const form = await Astro.request.formData();
+  phoneNumber = String(form.get("phoneNumber") ?? "").trim();
+  const password = String(form.get("password") ?? "");
+  const postedNextPath = sanitizeNextPath(String(form.get("next") ?? ""));
+
+  if (!Astro.session) {
+    errorMessage = "Session serveur indisponible. Veuillez reessayer.";
+  }
+  else {
+    try {
+      const adminSession = await authenticateAdmin({ phoneNumber, password });
+      await Astro.session.regenerate();
+      saveStoredAdminSession(Astro.session, adminSession);
+      const redirectPath = resolvePostLoginPath(postedNextPath, adminSession);
+      void redirectPath;
+      return Astro.redirect(redirectPath, 303);
+    }
+    catch (error) {
+      if (error instanceof AdminAuthError) {
+        errorMessage = error.message;
+        correlationId = error.correlationId ?? "";
+      }
+      else {
+        errorMessage = "Connexion impossible pour le moment.";
+      }
+    }
+  }
+}
+---
+
+<AuthLayout title="Connexion admin" eyebrow="Identifiez-vous pour acceder au back-office">
+  <section class="rounded-lg border border-line bg-white p-6 shadow-panel">
+    {
+      errorMessage && (
+        <div class="mb-5 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900" role="alert">
+          <p>{errorMessage}</p>
+          {correlationId && <p class="mt-1 text-xs text-red-700">Reference: {correlationId}</p>}
+        </div>
+      )
+    }
+    <form method="post" action="/login" class="space-y-5" data-login-form>
+      <input type="hidden" name="next" value={nextPath ?? ""} />
+      <div>
+        <label for="phoneNumber" class="block text-sm font-medium text-ink">Telephone</label>
+        <input
+          id="phoneNumber"
+          name="phoneNumber"
+          type="tel"
+          value={phoneNumber}
+          required
+          autocomplete="username"
+          class="mt-2 w-full rounded-md border border-line px-3 py-2 text-base outline-none focus:border-brand-700 focus:ring-2 focus:ring-brand-100"
+        />
+      </div>
+      <div>
+        <label for="password" class="block text-sm font-medium text-ink">Mot de passe</label>
+        <input
+          id="password"
+          name="password"
+          type="password"
+          required
+          autocomplete="current-password"
+          class="mt-2 w-full rounded-md border border-line px-3 py-2 text-base outline-none focus:border-brand-700 focus:ring-2 focus:ring-brand-100"
+        />
+      </div>
+      <button
+        type="submit"
+        class="w-full rounded-md bg-brand-700 px-4 py-3 text-sm font-semibold text-white hover:bg-brand-900 disabled:cursor-wait disabled:opacity-70"
+        data-login-submit
+      >
+        Se connecter
+      </button>
+      <p class="text-sm text-muted" aria-live="polite" hidden data-login-loading>
+        Connexion en cours...
+      </p>
+    </form>
+  </section>
+
+  <script>
+    const form = document.querySelector("[data-login-form]");
+    const submit = document.querySelector("[data-login-submit]");
+    const loading = document.querySelector("[data-login-loading]");
+
+    form?.addEventListener("submit", () => {
+      submit?.setAttribute("disabled", "true");
+      loading?.removeAttribute("hidden");
+    });
+  </script>
+</AuthLayout>

@@ -1,0 +1,33 @@
+---
+import AdminLayout from "../layouts/AdminLayout.astro";
+import { kpiCards } from "../lib/mock-data";
+---
+
+<AdminLayout title="KPI produit et revenus" eyebrow="Analytics">
+  <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+    {
+      kpiCards.map((item) => (
+        <article class="rounded-lg border border-line bg-white p-5 shadow-panel">
+          <p class="text-sm text-muted">{item.label}</p>
+          <strong class="mt-3 block text-2xl font-semibold">{item.value}</strong>
+          <p class="mt-2 text-sm text-muted">{item.target}</p>
+        </article>
+      ))
+    }
+  </section>
+
+  <section class="mt-6 rounded-lg border border-line bg-white p-5 shadow-panel">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <h3 class="font-semibold">Export KPI</h3>
+        <p class="text-sm text-muted">
+          Les exports devront rester alignes sur les donnees visibles et agregees.
+        </p>
+      </div>
+      <button class="rounded-md bg-brand-700 px-4 py-2 text-sm font-medium text-white">
+        Export CSV
+      </button>
+    </div>
+  </section>
+</AdminLayout>
+

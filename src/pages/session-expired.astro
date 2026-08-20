@@ -1,0 +1,17 @@
+---
+import AuthLayout from "../layouts/AuthLayout.astro";
+---
+
+<AuthLayout title="Session expiree" eyebrow="Reconnectez-vous pour continuer">
+  <section class="rounded-lg border border-line bg-white p-6 shadow-panel">
+    <p class="text-sm text-muted">
+      Votre session back-office n'est plus valide ou le jeton de rafraichissement a expire.
+    </p>
+    <a
+      href="/login"
+      class="mt-6 inline-flex rounded-md bg-brand-700 px-4 py-2 text-sm font-semibold text-white"
+    >
+      Revenir a la connexion
+    </a>
+  </section>
+</AuthLayout>

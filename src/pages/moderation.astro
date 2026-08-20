@@ -1,0 +1,32 @@
+---
+import AdminLayout from "../layouts/AdminLayout.astro";
+import { moderationQueue } from "../lib/mock-data";
+---
+
+<AdminLayout title="Moderation avis/support" eyebrow="Support">
+  <section class="rounded-lg border border-line bg-white shadow-panel">
+    <div class="border-b border-line px-5 py-4">
+      <h3 class="font-semibold">File de moderation</h3>
+      <p class="text-sm text-muted">Avis signales, commentaires et tickets support.</p>
+    </div>
+    <div class="divide-y divide-line">
+      {
+        moderationQueue.map((item) => (
+          <article class="grid gap-4 px-5 py-4 md:grid-cols-[1fr_auto] md:items-center">
+            <div>
+              <p class="font-semibold">{item.id} - {item.target}</p>
+              <p class="text-sm text-muted">{item.reason}</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <span class="rounded-full bg-surface px-2 py-1 text-xs font-semibold">
+                {item.priority}
+              </span>
+              <button class="rounded-md border border-line px-3 py-2 text-sm">Masquer</button>
+              <button class="rounded-md border border-line px-3 py-2 text-sm">Escalader</button>
+            </div>
+          </article>
+        ))
+      }
+    </div>
+  </section>
+</AdminLayout>

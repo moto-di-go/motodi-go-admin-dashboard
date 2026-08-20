@@ -1,0 +1,35 @@
+---
+import AuthLayout from "../layouts/AuthLayout.astro";
+import { firstAccessiblePath } from "../lib/auth/rbac";
+
+const session = Astro.locals.adminSession;
+const fallbackPath = session ? firstAccessiblePath(session) : null;
+---
+
+<AuthLayout title="Acces refuse" eyebrow="Votre profil actif ne permet pas d'ouvrir cette page">
+  <section class="rounded-lg border border-line bg-white p-6 shadow-panel">
+    <p class="text-sm text-muted">
+      Les permissions associees a votre session ne couvrent pas cette zone du dashboard.
+    </p>
+    <div class="mt-6 flex flex-wrap gap-3">
+      {
+        fallbackPath && (
+          <a
+            href={fallbackPath}
+            class="rounded-md bg-brand-700 px-4 py-2 text-sm font-semibold text-white"
+          >
+            Retour espace autorise
+          </a>
+        )
+      }
+      <form method="post" action="/api/logout">
+        <button
+          type="submit"
+          class="rounded-md border border-line bg-white px-4 py-2 text-sm font-medium text-ink"
+        >
+          Deconnexion
+        </button>
+      </form>
+    </div>
+  </section>
+</AuthLayout>
