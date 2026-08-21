@@ -8,6 +8,42 @@ export const protectedRoutes: ProtectedRoute[] = [
     requiredAnyPermissions: ["OPERATIONS_READ"]
   },
   {
+    href: "/users",
+    label: "Utilisateurs",
+    eyebrow: "Pilotage",
+    requiredAnyPermissions: ["OPERATIONS_READ"]
+  },
+  {
+    href: "/profiles",
+    label: "Profils",
+    eyebrow: "Pilotage",
+    requiredAnyPermissions: ["OPERATIONS_READ"]
+  },
+  {
+    href: "/announcements",
+    label: "Annonces",
+    eyebrow: "Pilotage",
+    requiredAnyPermissions: ["OPERATIONS_READ"]
+  },
+  {
+    href: "/bookings",
+    label: "Reservations",
+    eyebrow: "Pilotage",
+    requiredAnyPermissions: ["OPERATIONS_READ"]
+  },
+  {
+    href: "/payments",
+    label: "Paiements",
+    eyebrow: "Pilotage",
+    requiredAnyPermissions: ["OPERATIONS_READ"]
+  },
+  {
+    href: "/reconciliation",
+    label: "Reconciliation",
+    eyebrow: "Pilotage",
+    requiredAnyPermissions: ["PAYMENT_RECONCILE_READ"]
+  },
+  {
     href: "/kyc",
     label: "KYC",
     eyebrow: "Confiance",

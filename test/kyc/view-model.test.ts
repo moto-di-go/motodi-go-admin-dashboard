@@ -13,6 +13,7 @@ import { makeSession } from "../auth/fixtures";
 
 describe("KYC view model", () => {
   it("normalizes profile and status filters with pending as default", () => {
+    expect(normalizeKycProfileFilter("PASSENGER")).toBe("PASSENGER");
     expect(normalizeKycProfileFilter("MOTOTAXI")).toBe("MOTOTAXI");
     expect(normalizeKycProfileFilter("AGENCY")).toBeUndefined();
     expect(normalizeKycStatusFilter("REJECTED")).toBe("REJECTED");

@@ -44,6 +44,7 @@ export function makeSession(overrides: Partial<AdminSession> = {}): AdminSession
     activeProfileType: "ADMIN",
     permissions: [
       "OPERATIONS_READ",
+      "PAYMENT_RECONCILE_READ",
       "KYC_REVIEW_READ",
       "MODERATION_READ",
       "PRICING_READ",

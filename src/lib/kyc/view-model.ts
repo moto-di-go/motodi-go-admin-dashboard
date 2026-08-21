@@ -1,7 +1,7 @@
 import type { AdminSession, ValidationStatus } from "../auth/types";
 import type { AdminKycDocument, KycDecision, KycReviewFilters, KycReviewProfileType } from "./types";
 
-export const kycProfileTypeOptions: KycReviewProfileType[] = ["MOTOTAXI", "TRANSPORTER"];
+export const kycProfileTypeOptions: KycReviewProfileType[] = ["PASSENGER", "MOTOTAXI", "TRANSPORTER"];
 export const kycStatusOptions: ValidationStatus[] = ["PENDING", "VALIDATED", "REJECTED", "SUSPENDED", "DRAFT"];
 
 export function normalizeKycProfileFilter(value: string | null | undefined): KycReviewProfileType | undefined {

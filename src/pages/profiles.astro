@@ -1,0 +1,177 @@
+---
+import AdminLayout from "../layouts/AdminLayout.astro";
+import { AdminApiError } from "../lib/server/api-client";
+import { listOpsProfiles, opsExportPath } from "../lib/server/ops-service";
+import type { OpsProfileListItem } from "../lib/ops/types";
+
+const session = Astro.locals.adminSession;
+if (!session) {
+  return Astro.redirect("/login", 302);
+}
+
+const status = Astro.url.searchParams.get("status") ?? "";
+const type = Astro.url.searchParams.get("type") ?? "";
+const search = Astro.url.searchParams.get("search") ?? "";
+const page = Math.max(Number(Astro.url.searchParams.get("page") ?? "0") || 0, 0);
+
+let profiles: OpsProfileListItem[] = [];
+let hasMore = false;
+let errorMessage = "";
+
+try {
+  const response = await listOpsProfiles(session.accessToken, { status, type, search, page, size: 20 });
+  profiles = response.profiles;
+  hasMore = response.hasMore;
+}
+catch (error) {
+  errorMessage = error instanceof AdminApiError ? error.message : "Impossible de charger les profils.";
+}
+
+const exportHref = opsExportPath("profiles", {
+  status: status || undefined,
+  type: type || undefined,
+  search: search || undefined
+});
+const statusOptions = ["", "DRAFT", "PENDING", "VALIDATED", "REJECTED", "SUSPENDED"];
+const typeOptions = ["", "PASSENGER", "MOTOTAXI", "TRANSPORTER", "ADMIN", "AGENCY"];
+
+function formatDate(value: string | null | undefined): string {
+  if (!value) return "-";
+  return new Intl.DateTimeFormat("fr-CM", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+}
+
+function pageHref(targetPage: number): string {
+  const params = new URLSearchParams();
+  if (status) params.set("status", status);
+  if (type) params.set("type", type);
+  if (search) params.set("search", search);
+  if (targetPage > 0) params.set("page", String(targetPage));
+  return `/profiles?${params.toString()}`;
+}
+---
+
+<AdminLayout title="Profils" eyebrow="Pilotage">
+  {
+    errorMessage && (
+      <p class="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900" role="alert">
+        {errorMessage}
+      </p>
+    )
+  }
+
+  <form method="get" action="/profiles" class="mb-5 flex flex-wrap items-end gap-3 border-b border-line pb-5">
+    <div>
+      <label for="search" class="block text-sm font-medium text-ink">Recherche</label>
+      <input
+        id="search"
+        name="search"
+        value={search}
+        placeholder="Nom, telephone, id"
+        class="mt-2 rounded-md border border-line bg-white px-3 py-2 text-sm outline-none focus:border-brand-700 focus:ring-2 focus:ring-brand-100"
+      />
+    </div>
+    <div>
+      <label for="status" class="block text-sm font-medium text-ink">Statut validation</label>
+      <select
+        id="status"
+        name="status"
+        class="mt-2 rounded-md border border-line bg-white px-3 py-2 text-sm outline-none focus:border-brand-700 focus:ring-2 focus:ring-brand-100"
+      >
+        {
+          statusOptions.map((option) => (
+            <option value={option} selected={status === option}>
+              {option || "Tous"}
+            </option>
+          ))
+        }
+      </select>
+    </div>
+    <div>
+      <label for="type" class="block text-sm font-medium text-ink">Type</label>
+      <select
+        id="type"
+        name="type"
+        class="mt-2 rounded-md border border-line bg-white px-3 py-2 text-sm outline-none focus:border-brand-700 focus:ring-2 focus:ring-brand-100"
+      >
+        {
+          typeOptions.map((option) => (
+            <option value={option} selected={type === option}>
+              {option || "Tous"}
+            </option>
+          ))
+        }
+      </select>
+    </div>
+    <button type="submit" class="rounded-md bg-brand-700 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-900">
+      Filtrer
+    </button>
+    <a href={exportHref} class="rounded-md border border-line px-4 py-2 text-sm font-medium hover:bg-surface">
+      Export CSV
+    </a>
+  </form>
+
+  <section class="rounded-lg border border-line bg-white shadow-panel">
+    <div class="border-b border-line px-5 py-4">
+      <h3 class="font-semibold">Profils</h3>
+      <p class="text-sm text-muted">{profiles.length} profil(s) sur cette page.</p>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full min-w-[760px] text-left text-sm">
+        <thead class="bg-surface text-xs uppercase text-muted">
+          <tr>
+            <th class="px-5 py-3">Type</th>
+            <th class="px-5 py-3">Statut</th>
+            <th class="px-5 py-3">Nom</th>
+            <th class="px-5 py-3">Telephone</th>
+            <th class="px-5 py-3">User</th>
+            <th class="px-5 py-3">Actif</th>
+            <th class="px-5 py-3">Cree</th>
+          </tr>
+        </thead>
+        <tbody>
+          {
+            profiles.length === 0 ? (
+              <tr>
+                <td class="px-5 py-4 text-muted" colspan="7">Aucun profil.</td>
+              </tr>
+            ) : (
+              profiles.map((item) => (
+                <tr class="border-t border-line">
+                  <td class="px-5 py-4 font-medium">{item.type}</td>
+                  <td class="px-5 py-4">{item.validationStatus}</td>
+                  <td class="px-5 py-4">{item.displayName ?? "-"}</td>
+                  <td class="px-5 py-4 text-muted">{item.userPhone ?? "-"}</td>
+                  <td class="px-5 py-4">
+                    <a class="text-brand-700 hover:underline" href={`/users?userId=${item.userId}`}>
+                      {item.userId.slice(0, 8)}
+                    </a>
+                    <span class="ml-2 text-muted">({item.userStatus})</span>
+                  </td>
+                  <td class="px-5 py-4">{item.active ? "Oui" : "Non"}</td>
+                  <td class="px-5 py-4 text-muted">{formatDate(item.createdAt)}</td>
+                </tr>
+              ))
+            )
+          }
+        </tbody>
+      </table>
+    </div>
+    <div class="flex items-center justify-between border-t border-line px-5 py-3 text-sm">
+      {
+        page > 0 ? (
+          <a href={pageHref(page - 1)} class="font-medium text-brand-700 hover:underline">Precedent</a>
+        ) : (
+          <span class="text-muted">Precedent</span>
+        )
+      }
+      <span class="text-muted">Page {page + 1}</span>
+      {
+        hasMore ? (
+          <a href={pageHref(page + 1)} class="font-medium text-brand-700 hover:underline">Suivant</a>
+        ) : (
+          <span class="text-muted">Suivant</span>
+        )
+      }
+    </div>
+  </section>
+</AdminLayout>
