@@ -15,12 +15,24 @@ describe("admin RBAC", () => {
 
     expect(getVisibleNavItems(session).map((item) => item.href)).toEqual([
       "/",
+      "/users",
+      "/profiles",
+      "/announcements",
+      "/bookings",
+      "/payments",
+      "/reconciliation",
       "/kyc",
       "/moderation",
       "/pricing",
       "/kpi"
     ]);
     expect(firstAccessiblePath(session)).toBe("/");
+    expect(canAccessPath("/users", session)).toBe(true);
+    expect(canAccessPath("/profiles", session)).toBe(true);
+    expect(canAccessPath("/announcements", session)).toBe(true);
+    expect(canAccessPath("/bookings", session)).toBe(true);
+    expect(canAccessPath("/payments", session)).toBe(true);
+    expect(canAccessPath("/reconciliation", session)).toBe(true);
   });
 
   it("limits support users to menus backed by their permissions", () => {
@@ -33,6 +45,7 @@ describe("admin RBAC", () => {
     expect(getVisibleNavItems(session).map((item) => item.href)).toEqual(["/moderation"]);
     expect(canAccessPath("/kyc", session)).toBe(false);
     expect(canAccessPath("/moderation", session)).toBe(true);
+    expect(canAccessPath("/users", session)).toBe(false);
   });
 
   it("keeps validated agency users in the agency space only", () => {

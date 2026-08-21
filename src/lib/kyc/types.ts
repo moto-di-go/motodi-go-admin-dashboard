@@ -1,6 +1,6 @@
 import type { ProfileType, ValidationStatus } from "../auth/types";
 
-export type KycReviewProfileType = Extract<ProfileType, "MOTOTAXI" | "TRANSPORTER">;
+export type KycReviewProfileType = Extract<ProfileType, "PASSENGER" | "MOTOTAXI" | "TRANSPORTER">;
 export type KycDecision = "VALIDATE" | "REJECT";
 export type KycDocumentStatus =
   | "UPLOADED"
