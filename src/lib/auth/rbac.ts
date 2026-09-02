@@ -52,13 +52,13 @@ export const protectedRoutes: ProtectedRoute[] = [
   {
     href: "/moderation",
     label: "Moderation",
-    eyebrow: "Support",
+    eyebrow: "Confiance",
     requiredAnyPermissions: ["MODERATION_READ"]
   },
   {
     href: "/pricing",
     label: "Tarification",
-    eyebrow: "SIG et tarifs",
+    eyebrow: "SIG",
     requiredAnyPermissions: ["PRICING_READ", "GIS_READ"]
   },
   {
@@ -70,7 +70,7 @@ export const protectedRoutes: ProtectedRoute[] = [
   {
     href: "/agency",
     label: "Agence",
-    eyebrow: "Espace agence",
+    eyebrow: "Agence",
     requiredActiveProfileType: "AGENCY",
     requireValidatedActiveProfile: true,
     requiredAnyPermissions: ["AGENCY_STATS_READ"]

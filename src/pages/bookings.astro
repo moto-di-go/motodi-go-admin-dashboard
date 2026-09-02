@@ -1,5 +1,6 @@
 ---
 import AdminLayout from "../layouts/AdminLayout.astro";
+import StatusBadge from "../components/StatusBadge.astro";
 import { AdminApiError } from "../lib/server/api-client";
 import { listOpsBookings, opsExportPath } from "../lib/server/ops-service";
 import type { OpsBookingSummary } from "../lib/ops/types";
@@ -46,30 +47,24 @@ function pageHref(targetPage: number): string {
 <AdminLayout title="Reservations" eyebrow="Pilotage">
   {
     errorMessage && (
-      <p class="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900" role="alert">
-        {errorMessage}
-      </p>
+      <p class="alert-danger" role="alert">{errorMessage}</p>
     )
   }
 
-  <form method="get" action="/bookings" class="mb-5 flex flex-wrap items-end gap-3 border-b border-line pb-5">
+  <form method="get" action="/bookings" class="filter-bar">
     <div>
-      <label for="search" class="block text-sm font-medium text-ink">Recherche</label>
+      <label for="search" class="field-label">Recherche</label>
       <input
         id="search"
         name="search"
         value={search}
         placeholder="Telephone, id"
-        class="mt-2 rounded-md border border-line bg-white px-3 py-2 text-sm outline-none focus:border-brand-700 focus:ring-2 focus:ring-brand-100"
+        class="field-control"
       />
     </div>
     <div>
-      <label for="status" class="block text-sm font-medium text-ink">Statut</label>
-      <select
-        id="status"
-        name="status"
-        class="mt-2 rounded-md border border-line bg-white px-3 py-2 text-sm outline-none focus:border-brand-700 focus:ring-2 focus:ring-brand-100"
-      >
+      <label for="status" class="field-label">Statut</label>
+      <select id="status" name="status" class="field-control">
         {
           statusOptions.map((option) => (
             <option value={option} selected={status === option}>
@@ -79,46 +74,42 @@ function pageHref(targetPage: number): string {
         }
       </select>
     </div>
-    <button type="submit" class="rounded-md bg-brand-700 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-900">
-      Filtrer
-    </button>
-    <a href={exportHref} class="rounded-md border border-line px-4 py-2 text-sm font-medium hover:bg-surface">
-      Export CSV
-    </a>
+    <button type="submit" class="btn-primary">Filtrer</button>
+    <a href={exportHref} class="btn-secondary">Export CSV</a>
   </form>
 
-  <section class="rounded-lg border border-line bg-white shadow-panel">
+  <section class="panel overflow-hidden">
     <div class="border-b border-line px-5 py-4">
-      <h3 class="font-semibold">Reservations</h3>
+      <h3 class="font-display font-semibold">Reservations</h3>
       <p class="text-sm text-muted">{bookings.length} reservation(s) sur cette page.</p>
     </div>
     <div class="overflow-x-auto">
-      <table class="w-full min-w-[720px] text-left text-sm">
-        <thead class="bg-surface text-xs uppercase text-muted">
+      <table class="data-table min-w-[720px]">
+        <thead>
           <tr>
-            <th class="px-5 py-3">Id</th>
-            <th class="px-5 py-3">Annonce</th>
-            <th class="px-5 py-3">Statut</th>
-            <th class="px-5 py-3">Places</th>
-            <th class="px-5 py-3">Contact</th>
-            <th class="px-5 py-3">Demande</th>
+            <th>Id</th>
+            <th>Annonce</th>
+            <th>Statut</th>
+            <th class="text-right">Places</th>
+            <th>Contact</th>
+            <th>Demande</th>
           </tr>
         </thead>
         <tbody>
           {
             bookings.length === 0 ? (
               <tr>
-                <td class="px-5 py-4 text-muted" colspan="6">Aucune reservation.</td>
+                <td class="empty-state" colspan="6">Aucune reservation.</td>
               </tr>
             ) : (
               bookings.map((item) => (
-                <tr class="border-t border-line">
-                  <td class="px-5 py-4 font-mono text-xs">{item.id.slice(0, 8)}…</td>
-                  <td class="px-5 py-4 font-mono text-xs">{item.announcementId.slice(0, 8)}…</td>
-                  <td class="px-5 py-4">{item.status}</td>
-                  <td class="px-5 py-4">{item.seatsRequested}</td>
-                  <td class="px-5 py-4 text-muted">{item.contactPhone ?? "-"}</td>
-                  <td class="px-5 py-4 text-muted">{formatDate(item.requestedAt)}</td>
+                <tr>
+                  <td class="font-data text-xs">{item.id.slice(0, 8)}…</td>
+                  <td class="font-data text-xs">{item.announcementId.slice(0, 8)}…</td>
+                  <td><StatusBadge status={item.status} /></td>
+                  <td class="num">{item.seatsRequested}</td>
+                  <td class="font-data text-xs text-muted">{item.contactPhone ?? "-"}</td>
+                  <td class="text-muted">{formatDate(item.requestedAt)}</td>
                 </tr>
               ))
             )
@@ -134,7 +125,7 @@ function pageHref(targetPage: number): string {
           <span class="text-muted">Precedent</span>
         )
       }
-      <span class="text-muted">Page {page + 1}</span>
+      <span class="font-data text-muted">Page {page + 1}</span>
       {
         hasMore ? (
           <a href={pageHref(page + 1)} class="font-medium text-brand-700 hover:underline">Suivant</a>

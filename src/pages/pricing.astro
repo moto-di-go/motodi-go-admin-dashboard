@@ -8,8 +8,8 @@ const session = Astro.locals.adminSession;
 const canWritePricing = session?.permissions.includes("PRICING_WRITE") ?? false;
 const canWriteGis = session?.permissions.includes("GIS_WRITE") ?? false;
 
-let rules = [];
-let layers = [];
+let rules: Awaited<ReturnType<typeof listPricingRules>> = [];
+let layers: Awaited<ReturnType<typeof listGisLayers>> = [];
 let photonStatus: PhotonIndexStatus | null = null;
 let errorMessage = "";
 let successMessage = "";
@@ -74,7 +74,7 @@ if (session) {
 }
 ---
 
-<AdminLayout title="Parametrage tarifaire" eyebrow="SIG et tarifs">
+<AdminLayout title="Parametrage tarifaire" eyebrow="SIG">
   {errorMessage && <p class="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{errorMessage}</p>}
   {successMessage && <p class="mb-4 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{successMessage}</p>}
 

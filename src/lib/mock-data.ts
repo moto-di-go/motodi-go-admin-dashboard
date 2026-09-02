@@ -29,17 +29,3 @@ export const pricingRules = [
   { zone: "CM-CE-YDE", window: "22:00-04:59", base: "700 FCFA", coefficient: "1.25" },
   { zone: "CM-LT-CE", window: "Interurbain", base: "9000 FCFA", coefficient: "1.00" }
 ];
-
-export const kpiCards = [
-  { label: "Taux usage IA", value: "31%", target: "MVP: 25%" },
-  { label: "SLA serveur", value: "99.91%", target: "Cible: 99.9%" },
-  { label: "Latence IA", value: "142 ms", target: "Alerte: 500 ms" },
-  { label: "Revenus agence", value: "1,2M FCFA", target: "Forfaits mensuels" }
-];
-
-export const agencyOverview = [
-  { label: "Annonces actives", value: "18", detail: "Interurbain publie" },
-  { label: "Reservations", value: "324", detail: "Mois en cours" },
-  { label: "Taux remplissage", value: "78%", detail: "Moyenne flotte" },
-  { label: "Forfait", value: "10 000 FCFA", detail: "Abonnement mensuel" }
-];

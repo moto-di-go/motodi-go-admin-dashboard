@@ -15,16 +15,22 @@ const { title, eyebrow = "Back-office securise" } = Astro.props;
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Acces admin MOTO'DI GO" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Sora:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
     <title>{title} - MOTO'DI GO Admin</title>
   </head>
   <body>
-    <main class="min-h-screen bg-surface px-4 py-8 text-ink sm:px-6 lg:px-8">
-      <div class="mx-auto flex min-h-[calc(100vh-4rem)] max-w-md flex-col justify-center">
+    <main class="min-h-screen px-4 py-8 text-ink sm:px-6 lg:px-8">
+      <div class="page-enter mx-auto flex min-h-[calc(100vh-4rem)] max-w-md flex-col justify-center">
         <div class="mb-8">
-          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-brand-700">
+          <p class="font-display text-xs font-semibold uppercase tracking-[0.18em] text-brand-700">
             MOTO'DI GO
           </p>
-          <h1 class="mt-2 text-3xl font-semibold">{title}</h1>
+          <h1 class="font-display mt-2 text-3xl font-semibold tracking-tight">{title}</h1>
           <p class="mt-2 text-sm text-muted">{eyebrow}</p>
         </div>
         <slot />

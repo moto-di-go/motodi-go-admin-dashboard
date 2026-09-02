@@ -4,15 +4,44 @@
 
 :root {
   color-scheme: light;
-  font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background: #f6f8fb;
-  color: #18212f;
+  --ink: #14201c;
+  --muted: #5c6f68;
+  --line: #d5e0db;
+  --surface: #f3f7f5;
+  --panel: #ffffff;
+  --brand-50: #ecf8f1;
+  --brand-100: #d1f0df;
+  --brand-500: #12a86a;
+  --brand-700: #0b6e47;
+  --brand-900: #084830;
+  --ok: #0b6e47;
+  --ok-bg: #ecf8f1;
+  --warn: #a16207;
+  --warn-bg: #fef6e7;
+  --danger: #b42318;
+  --danger-bg: #fef3f2;
+  --info: #175cd3;
+  --info-bg: #eff8ff;
+  --shadow-panel: 0 1px 2px rgba(20, 32, 28, 0.04), 0 10px 28px rgba(20, 32, 28, 0.06);
+  --font-sans: "Source Sans 3", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Sora", "Source Sans 3", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", monospace;
+  font-family: var(--font-sans);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   margin: 0;
   min-height: 100vh;
+  background:
+    radial-gradient(1200px 420px at 0% -10%, rgba(18, 168, 106, 0.08), transparent 55%),
+    radial-gradient(900px 360px at 100% 0%, rgba(20, 32, 28, 0.04), transparent 50%),
+    var(--surface);
 }
 
 a {
@@ -20,3 +49,209 @@ a {
   text-decoration: none;
 }
 
+:focus-visible {
+  outline: 2px solid var(--brand-700);
+  outline-offset: 2px;
+}
+
+@layer components {
+  .font-display {
+    font-family: var(--font-display);
+  }
+
+  .font-data {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
+
+  .tabular {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
+
+  .panel {
+    @apply rounded-lg border border-line bg-white;
+    box-shadow: var(--shadow-panel);
+  }
+
+  .metric-card {
+    @apply panel block p-5 transition-all duration-150 ease-out;
+  }
+
+  .metric-card:hover {
+    border-color: var(--brand-700);
+    transform: translateY(-1px);
+  }
+
+  .metric-label {
+    @apply text-xs font-semibold uppercase tracking-[0.12em] text-muted;
+  }
+
+  .metric-value {
+    font-family: var(--font-display);
+    @apply mt-3 block text-3xl font-semibold tracking-tight text-ink tabular;
+  }
+
+  .metric-detail {
+    @apply mt-2 text-sm text-muted;
+  }
+
+  .progress-track {
+    @apply mt-3 h-1.5 overflow-hidden rounded-full bg-surface;
+  }
+
+  .progress-fill {
+    @apply h-full rounded-full bg-brand-700 transition-[width] duration-500 ease-out;
+  }
+
+  .filter-bar {
+    @apply mb-5 flex flex-wrap items-end gap-3 border-b border-line bg-surface/80 pb-4;
+  }
+
+  .field-label {
+    @apply block text-sm font-medium text-ink;
+  }
+
+  .field-control {
+    @apply mt-2 rounded-md border border-line bg-white px-3 py-2 text-sm outline-none transition-colors;
+  }
+
+  .field-control:focus {
+    border-color: var(--brand-700);
+    box-shadow: 0 0 0 3px var(--brand-100);
+  }
+
+  .btn-primary {
+    @apply rounded-md bg-brand-700 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-900;
+  }
+
+  .btn-secondary {
+    @apply rounded-md border border-line bg-white px-4 py-2 text-sm font-medium text-ink transition-colors hover:bg-surface;
+  }
+
+  .data-table {
+    @apply w-full text-left text-sm;
+  }
+
+  .data-table thead {
+    @apply sticky top-0 z-[1] bg-surface/95 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted backdrop-blur-sm;
+  }
+
+  .data-table th {
+    @apply px-5 py-2.5 font-semibold;
+  }
+
+  .data-table td {
+    @apply px-5 py-2.5 align-middle;
+  }
+
+  .data-table tbody tr {
+    @apply border-t border-line transition-colors duration-100;
+  }
+
+  .data-table tbody tr:hover {
+    background: color-mix(in srgb, var(--brand-50) 55%, white);
+  }
+
+  .data-table .num {
+    @apply text-right font-data tabular;
+  }
+
+  .status-badge {
+    @apply inline-flex items-center rounded px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.04em];
+  }
+
+  .status-ok {
+    color: var(--ok);
+    background: var(--ok-bg);
+  }
+
+  .status-warn {
+    color: var(--warn);
+    background: var(--warn-bg);
+  }
+
+  .status-danger {
+    color: var(--danger);
+    background: var(--danger-bg);
+  }
+
+  .status-info {
+    color: var(--info);
+    background: var(--info-bg);
+  }
+
+  .status-neutral {
+    @apply bg-surface text-muted;
+  }
+
+  .alert-warn {
+    @apply mb-4 rounded-md border px-4 py-3 text-sm;
+    color: var(--warn);
+    background: var(--warn-bg);
+    border-color: color-mix(in srgb, var(--warn) 25%, white);
+  }
+
+  .alert-danger {
+    @apply mb-4 rounded-md border px-4 py-3 text-sm;
+    color: var(--danger);
+    background: var(--danger-bg);
+    border-color: color-mix(in srgb, var(--danger) 25%, white);
+  }
+
+  .empty-state {
+    @apply px-5 py-10 text-center text-sm text-muted;
+  }
+
+  .nav-group-label {
+    @apply px-3 pb-1 pt-4 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted first:pt-0;
+  }
+
+  .nav-link {
+    @apply block rounded-md px-3 py-2 text-sm font-medium transition-colors duration-100;
+  }
+
+  .nav-link-active {
+    @apply bg-brand-50 text-brand-900;
+    box-shadow: inset 3px 0 0 var(--brand-700);
+  }
+
+  .nav-link-idle {
+    @apply text-muted hover:bg-surface hover:text-ink;
+  }
+
+  .page-enter {
+    animation: page-enter 220ms ease-out;
+  }
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .page-enter,
+  .metric-card,
+  .progress-fill,
+  .data-table tbody tr,
+  .nav-link {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .metric-card:hover {
+    transform: none;
+  }
+}

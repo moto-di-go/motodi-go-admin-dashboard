@@ -1,5 +1,6 @@
 ---
 import AdminLayout from "../layouts/AdminLayout.astro";
+import StatusBadge from "../components/StatusBadge.astro";
 import { AdminApiError } from "../lib/server/api-client";
 import { listOpsAnnouncements, opsExportPath } from "../lib/server/ops-service";
 import type { OpsAnnouncementSummary } from "../lib/ops/types";
@@ -46,30 +47,24 @@ function pageHref(targetPage: number): string {
 <AdminLayout title="Annonces" eyebrow="Pilotage">
   {
     errorMessage && (
-      <p class="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900" role="alert">
-        {errorMessage}
-      </p>
+      <p class="alert-danger" role="alert">{errorMessage}</p>
     )
   }
 
-  <form method="get" action="/announcements" class="mb-5 flex flex-wrap items-end gap-3 border-b border-line pb-5">
+  <form method="get" action="/announcements" class="filter-bar">
     <div>
-      <label for="search" class="block text-sm font-medium text-ink">Recherche</label>
+      <label for="search" class="field-label">Recherche</label>
       <input
         id="search"
         name="search"
         value={search}
         placeholder="Ville, id"
-        class="mt-2 rounded-md border border-line bg-white px-3 py-2 text-sm outline-none focus:border-brand-700 focus:ring-2 focus:ring-brand-100"
+        class="field-control"
       />
     </div>
     <div>
-      <label for="status" class="block text-sm font-medium text-ink">Statut</label>
-      <select
-        id="status"
-        name="status"
-        class="mt-2 rounded-md border border-line bg-white px-3 py-2 text-sm outline-none focus:border-brand-700 focus:ring-2 focus:ring-brand-100"
-      >
+      <label for="status" class="field-label">Statut</label>
+      <select id="status" name="status" class="field-control">
         {
           statusOptions.map((option) => (
             <option value={option} selected={status === option}>
@@ -79,52 +74,48 @@ function pageHref(targetPage: number): string {
         }
       </select>
     </div>
-    <button type="submit" class="rounded-md bg-brand-700 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-900">
-      Filtrer
-    </button>
-    <a href={exportHref} class="rounded-md border border-line px-4 py-2 text-sm font-medium hover:bg-surface">
-      Export CSV
-    </a>
+    <button type="submit" class="btn-primary">Filtrer</button>
+    <a href={exportHref} class="btn-secondary">Export CSV</a>
   </form>
 
-  <section class="rounded-lg border border-line bg-white shadow-panel">
+  <section class="panel overflow-hidden">
     <div class="border-b border-line px-5 py-4">
-      <h3 class="font-semibold">Annonces interurbaines</h3>
+      <h3 class="font-display font-semibold">Annonces interurbaines</h3>
       <p class="text-sm text-muted">{announcements.length} annonce(s) sur cette page.</p>
     </div>
     <div class="overflow-x-auto">
-      <table class="w-full min-w-[720px] text-left text-sm">
-        <thead class="bg-surface text-xs uppercase text-muted">
+      <table class="data-table min-w-[720px]">
+        <thead>
           <tr>
-            <th class="px-5 py-3">Trajet</th>
-            <th class="px-5 py-3">Depart</th>
-            <th class="px-5 py-3">Prix</th>
-            <th class="px-5 py-3">Places</th>
-            <th class="px-5 py-3">Statut</th>
-            <th class="px-5 py-3">Cree</th>
+            <th>Trajet</th>
+            <th>Depart</th>
+            <th class="text-right">Prix</th>
+            <th class="text-right">Places</th>
+            <th>Statut</th>
+            <th>Cree</th>
           </tr>
         </thead>
         <tbody>
           {
             announcements.length === 0 ? (
               <tr>
-                <td class="px-5 py-4 text-muted" colspan="6">Aucune annonce.</td>
+                <td class="empty-state" colspan="6">Aucune annonce.</td>
               </tr>
             ) : (
               announcements.map((item) => (
-                <tr class="border-t border-line">
-                  <td class="px-5 py-4 font-medium">
+                <tr>
+                  <td class="font-medium">
                     {item.departureCity} → {item.destinationCity}
                   </td>
-                  <td class="px-5 py-4 text-muted">
+                  <td class="font-data text-xs text-muted">
                     {item.departureDate ?? "-"} {item.departureTime ?? ""}
                   </td>
-                  <td class="px-5 py-4">{item.priceFcfa} FCFA</td>
-                  <td class="px-5 py-4">
+                  <td class="num">{item.priceFcfa} FCFA</td>
+                  <td class="num">
                     {item.remainingSeats}/{item.totalSeats}
                   </td>
-                  <td class="px-5 py-4">{item.status}</td>
-                  <td class="px-5 py-4 text-muted">{formatDate(item.createdAt)}</td>
+                  <td><StatusBadge status={item.status} /></td>
+                  <td class="text-muted">{formatDate(item.createdAt)}</td>
                 </tr>
               ))
             )
@@ -140,7 +131,7 @@ function pageHref(targetPage: number): string {
           <span class="text-muted">Precedent</span>
         )
       }
-      <span class="text-muted">Page {page + 1}</span>
+      <span class="font-data text-muted">Page {page + 1}</span>
       {
         hasMore ? (
           <a href={pageHref(page + 1)} class="font-medium text-brand-700 hover:underline">Suivant</a>

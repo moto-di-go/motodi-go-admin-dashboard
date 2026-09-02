@@ -1,26 +1,339 @@
 ---
 import AdminLayout from "../layouts/AdminLayout.astro";
-import { agencyOverview } from "../lib/mock-data";
+import MetricCard from "../components/MetricCard.astro";
+import StatusBadge from "../components/StatusBadge.astro";
+import { AdminApiError } from "../lib/server/api-client";
+import {
+  getAgencyOverview,
+  listAgencyAnnouncements,
+  listAgencyBookings
+} from "../lib/server/agency-service";
+import {
+  emptyAgencyOverview,
+  type AgencyAnnouncementSummary,
+  type AgencyBookingSummary,
+  type AgencyOverview
+} from "../lib/agency/types";
+
+const session = Astro.locals.adminSession;
+if (!session) {
+  return Astro.redirect("/login", 302);
+}
+
+const announcementStatus = Astro.url.searchParams.get("announcementStatus") ?? "";
+const bookingStatus = Astro.url.searchParams.get("bookingStatus") ?? "";
+const from = Astro.url.searchParams.get("from") ?? "";
+const to = Astro.url.searchParams.get("to") ?? "";
+const announcementsPage = Math.max(Number(Astro.url.searchParams.get("announcementsPage") ?? "0") || 0, 0);
+const bookingsPage = Math.max(Number(Astro.url.searchParams.get("bookingsPage") ?? "0") || 0, 0);
+
+let overview: AgencyOverview = emptyAgencyOverview();
+let announcements: AgencyAnnouncementSummary[] = [];
+let announcementsHasMore = false;
+let bookings: AgencyBookingSummary[] = [];
+let bookingsHasMore = false;
+let errorMessage = "";
+
+try {
+  const [overviewResponse, announcementsResponse, bookingsResponse] = await Promise.all([
+    getAgencyOverview(session.accessToken, {
+      from: from || undefined,
+      to: to || undefined
+    }),
+    listAgencyAnnouncements(session.accessToken, {
+      status: announcementStatus || undefined,
+      page: announcementsPage,
+      size: 10
+    }),
+    listAgencyBookings(session.accessToken, {
+      status: bookingStatus || undefined,
+      page: bookingsPage,
+      size: 10
+    })
+  ]);
+  overview = overviewResponse;
+  announcements = announcementsResponse.announcements;
+  announcementsHasMore = announcementsResponse.hasMore;
+  bookings = bookingsResponse.bookings;
+  bookingsHasMore = bookingsResponse.hasMore;
+}
+catch (error) {
+  errorMessage = error instanceof AdminApiError
+    ? error.message
+    : "Impossible de charger l'espace agence.";
+}
+
+const announcementStatusOptions = ["", "DRAFT", "PUBLISHED", "FULL", "CLOSED", "CANCELLED"];
+const bookingStatusOptions = ["", "PENDING", "CONFIRMED", "PENDING_PAYMENT", "PAID", "CANCELLED", "EXPIRED"];
+
+function formatCount(value: number): string {
+  return new Intl.NumberFormat("fr-CM").format(value ?? 0);
+}
+
+function formatMoney(value: number): string {
+  return `${new Intl.NumberFormat("fr-CM").format(value ?? 0)} FCFA`;
+}
+
+function formatFillRate(value: number | null): string {
+  if (value == null) {
+    return "—";
+  }
+  return `${new Intl.NumberFormat("fr-CM", { maximumFractionDigits: 1 }).format(value * 100)} %`;
+}
+
+function periodLabel(start: string, end: string): string {
+  if (!start || !end) {
+    return "Periode courante";
+  }
+  return `${start} → ${end}`;
+}
+
+function formatDate(value: string | null | undefined): string {
+  if (!value) {
+    return "-";
+  }
+  return new Intl.DateTimeFormat("fr-CM", {
+    dateStyle: "medium",
+    timeStyle: "short"
+  }).format(new Date(value));
+}
+
+function shortId(value: string): string {
+  return value.slice(0, 8);
+}
+
+function pageHref(overrides: Record<string, string | number | undefined>): string {
+  const params = new URLSearchParams();
+  const values = {
+    from: from || undefined,
+    to: to || undefined,
+    announcementStatus: announcementStatus || undefined,
+    bookingStatus: bookingStatus || undefined,
+    announcementsPage: announcementsPage > 0 ? announcementsPage : undefined,
+    bookingsPage: bookingsPage > 0 ? bookingsPage : undefined,
+    ...overrides
+  };
+  for (const [key, value] of Object.entries(values)) {
+    if (value === undefined || value === "") {
+      continue;
+    }
+    params.set(key, String(value));
+  }
+  const query = params.toString();
+  return query ? `/agency?${query}` : "/agency";
+}
+
+const billingBadgeClass = overview.billingPlan === "PREMIUM"
+  ? "status-badge status-ok"
+  : "status-badge status-neutral";
 ---
 
 <AdminLayout title="Espace agence" eyebrow="Agence">
-  <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-    {
-      agencyOverview.map((item) => (
-        <article class="rounded-lg border border-line bg-white p-5 shadow-panel">
-          <p class="text-sm text-muted">{item.label}</p>
-          <strong class="mt-3 block text-2xl font-semibold">{item.value}</strong>
-          <p class="mt-2 text-sm text-muted">{item.detail}</p>
-        </article>
-      ))
-    }
+  {
+    errorMessage && (
+      <p class="alert-warn" role="status">{errorMessage}</p>
+    )
+  }
+
+  <section class="mb-5 flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <h2 class="font-display text-lg font-semibold">{overview.legalName ?? "Agence"}</h2>
+      <p class="text-sm text-muted">Statistiques scopees au profil agence actif.</p>
+    </div>
+    <span class={billingBadgeClass}>
+      {overview.billingPlan} · {formatMoney(overview.billingPlanPriceFcfa)} / mois
+    </span>
   </section>
 
-  <section class="mt-6 rounded-lg border border-line bg-white p-5 shadow-panel">
-    <h3 class="font-semibold">Donnees agence</h3>
-    <p class="mt-2 text-sm text-muted">
-      Vue shell reservee au profil agence valide. Les annonces, reservations et statistiques seront
-      branchees par le ticket ADMIN-AGENCY-001.
-    </p>
+  <form method="get" action="/agency" class="filter-bar">
+    <div>
+      <label for="from" class="field-label">Du</label>
+      <input id="from" name="from" type="date" value={from} class="field-control" />
+    </div>
+    <div>
+      <label for="to" class="field-label">Au</label>
+      <input id="to" name="to" type="date" value={to} class="field-control" />
+    </div>
+    <div>
+      <label for="announcementStatus" class="field-label">Annonces</label>
+      <select id="announcementStatus" name="announcementStatus" class="field-control">
+        {
+          announcementStatusOptions.map((option) => (
+            <option value={option} selected={announcementStatus === option}>
+              {option || "Tous"}
+            </option>
+          ))
+        }
+      </select>
+    </div>
+    <div>
+      <label for="bookingStatus" class="field-label">Reservations</label>
+      <select id="bookingStatus" name="bookingStatus" class="field-control">
+        {
+          bookingStatusOptions.map((option) => (
+            <option value={option} selected={bookingStatus === option}>
+              {option || "Tous"}
+            </option>
+          ))
+        }
+      </select>
+    </div>
+    <button type="submit" class="btn-primary">Filtrer</button>
+  </form>
+
+  <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+    <MetricCard
+      label="Annonces actives"
+      value={formatCount(overview.activeAnnouncements)}
+      detail="PUBLISHED / FULL"
+    />
+    <MetricCard
+      label="Reservations"
+      value={formatCount(overview.reservationCount)}
+      detail={periodLabel(overview.periodStart, overview.periodEnd)}
+    />
+    <MetricCard
+      label="Taux remplissage"
+      value={formatFillRate(overview.averageFillRate)}
+      detail="Moyenne flotte"
+    />
+    <MetricCard
+      label="Forfait"
+      value={formatMoney(overview.billingPlanPriceFcfa)}
+      detail={`${overview.billingPlan} · priorite ${overview.displayPriority}`}
+    />
+  </section>
+
+  {
+    Object.keys(overview.reservationsByStatus).length > 0 && (
+      <p class="mt-4 text-sm text-muted">
+        Reservations par statut :{" "}
+        {Object.entries(overview.reservationsByStatus)
+          .map(([status, total]) => `${status}: ${formatCount(total)}`)
+          .join(" · ")}
+      </p>
+    )
+  }
+
+  <section class="mt-6 grid gap-6 xl:grid-cols-2">
+    <div class="panel overflow-hidden">
+      <div class="border-b border-line px-5 py-4">
+        <h3 class="font-display font-semibold">Annonces</h3>
+        <p class="text-sm text-muted">{announcements.length} annonce(s) sur cette page.</p>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="data-table min-w-[480px]">
+          <thead>
+            <tr>
+              <th>Trajet</th>
+              <th class="text-right">Places</th>
+              <th>Statut</th>
+              <th>Cree</th>
+            </tr>
+          </thead>
+          <tbody>
+            {
+              announcements.length === 0 ? (
+                <tr>
+                  <td class="empty-state" colspan="4">Aucune annonce.</td>
+                </tr>
+              ) : (
+                announcements.map((item) => (
+                  <tr>
+                    <td class="font-medium">
+                      {item.departureCity} → {item.destinationCity}
+                    </td>
+                    <td class="num">{item.remainingSeats}/{item.totalSeats}</td>
+                    <td><StatusBadge status={item.status} /></td>
+                    <td class="text-muted">{formatDate(item.createdAt)}</td>
+                  </tr>
+                ))
+              )
+            }
+          </tbody>
+        </table>
+      </div>
+      <div class="flex items-center justify-between border-t border-line px-5 py-3 text-sm">
+        {
+          announcementsPage > 0 ? (
+            <a href={pageHref({ announcementsPage: announcementsPage - 1 })} class="font-medium text-brand-700 hover:underline">
+              Precedent
+            </a>
+          ) : (
+            <span class="text-muted">Precedent</span>
+          )
+        }
+        <span class="font-data text-muted">Page {announcementsPage + 1}</span>
+        {
+          announcementsHasMore ? (
+            <a href={pageHref({ announcementsPage: announcementsPage + 1 })} class="font-medium text-brand-700 hover:underline">
+              Suivant
+            </a>
+          ) : (
+            <span class="text-muted">Suivant</span>
+          )
+        }
+      </div>
+    </div>
+
+    <div class="panel overflow-hidden">
+      <div class="border-b border-line px-5 py-4">
+        <h3 class="font-display font-semibold">Reservations</h3>
+        <p class="text-sm text-muted">Telephones passagers masques.</p>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="data-table min-w-[480px]">
+          <thead>
+            <tr>
+              <th>Reference</th>
+              <th>Statut</th>
+              <th class="text-right">Places</th>
+              <th>Contact</th>
+              <th>Demande</th>
+            </tr>
+          </thead>
+          <tbody>
+            {
+              bookings.length === 0 ? (
+                <tr>
+                  <td class="empty-state" colspan="5">Aucune reservation.</td>
+                </tr>
+              ) : (
+                bookings.map((item) => (
+                  <tr>
+                    <td class="font-data text-xs">{shortId(item.id)}</td>
+                    <td><StatusBadge status={item.status} /></td>
+                    <td class="num">{item.seatsRequested}</td>
+                    <td class="font-data text-xs text-muted">{item.contactPhone ?? "-"}</td>
+                    <td class="text-muted">{formatDate(item.requestedAt)}</td>
+                  </tr>
+                ))
+              )
+            }
+          </tbody>
+        </table>
+      </div>
+      <div class="flex items-center justify-between border-t border-line px-5 py-3 text-sm">
+        {
+          bookingsPage > 0 ? (
+            <a href={pageHref({ bookingsPage: bookingsPage - 1 })} class="font-medium text-brand-700 hover:underline">
+              Precedent
+            </a>
+          ) : (
+            <span class="text-muted">Precedent</span>
+          )
+        }
+        <span class="font-data text-muted">Page {bookingsPage + 1}</span>
+        {
+          bookingsHasMore ? (
+            <a href={pageHref({ bookingsPage: bookingsPage + 1 })} class="font-medium text-brand-700 hover:underline">
+              Suivant
+            </a>
+          ) : (
+            <span class="text-muted">Suivant</span>
+          )
+        }
+      </div>
+    </div>
   </section>
 </AdminLayout>
