@@ -1,0 +1,47 @@
+---
+interface Props {
+  label: string;
+  value: string;
+  detail?: string;
+  href?: string;
+  progress?: number | null;
+  progressCaption?: string;
+}
+
+const { label, value, detail, href, progress, progressCaption } = Astro.props;
+const progressWidth = typeof progress === "number"
+  ? Math.min(100, Math.max(0, progress))
+  : null;
+---
+
+{
+  href ? (
+    <a href={href} class="metric-card">
+      <p class="metric-label">{label}</p>
+      <strong class="metric-value">{value}</strong>
+      {detail && <p class="metric-detail">{detail}</p>}
+      {progressWidth !== null && (
+        <>
+          <div class="progress-track" aria-hidden="true">
+            <div class="progress-fill" style={`width: ${progressWidth}%`} />
+          </div>
+          {progressCaption && <p class="mt-1 text-xs text-muted">{progressCaption}</p>}
+        </>
+      )}
+    </a>
+  ) : (
+    <article class="metric-card">
+      <p class="metric-label">{label}</p>
+      <strong class="metric-value">{value}</strong>
+      {detail && <p class="metric-detail">{detail}</p>}
+      {progressWidth !== null && (
+        <>
+          <div class="progress-track" aria-hidden="true">
+            <div class="progress-fill" style={`width: ${progressWidth}%`} />
+          </div>
+          {progressCaption && <p class="mt-1 text-xs text-muted">{progressCaption}</p>}
+        </>
+      )}
+    </article>
+  )
+}

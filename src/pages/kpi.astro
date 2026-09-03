@@ -1,33 +1,192 @@
 ---
 import AdminLayout from "../layouts/AdminLayout.astro";
-import { kpiCards } from "../lib/mock-data";
+import MetricCard from "../components/MetricCard.astro";
+import { AdminApiError } from "../lib/server/api-client";
+import { getKpiSnapshot, kpiExportPath } from "../lib/server/kpi-service";
+import {
+  emptyKpiSnapshot,
+  formatAiUsageRate,
+  formatNullablePercent,
+  formatNullableSeconds,
+  progressTowardTarget,
+  type KpiSnapshot
+} from "../lib/kpi/types";
+
+const session = Astro.locals.adminSession;
+if (!session) {
+  return Astro.redirect("/login", 302);
+}
+
+const periodParam = Astro.url.searchParams.get("period") ?? "";
+const fromParam = Astro.url.searchParams.get("from") ?? "";
+const toParam = Astro.url.searchParams.get("to") ?? "";
+
+const today = new Date();
+const defaultFrom = formatIsoDate(new Date(today.getFullYear(), today.getMonth(), 1));
+const defaultTo = formatIsoDate(today);
+
+const period = periodParam === "7d" || periodParam === "30d" || periodParam === "month" ? periodParam : "";
+const from = fromParam || (!period ? defaultFrom : "");
+const to = toParam || (!period ? defaultTo : "");
+
+const queryParams = {
+  from: from || undefined,
+  to: to || undefined,
+  period: period || undefined
+};
+
+let snapshot: KpiSnapshot = emptyKpiSnapshot();
+let errorMessage = "";
+
+try {
+  snapshot = await getKpiSnapshot(session.accessToken, queryParams);
+}
+catch (error) {
+  snapshot = emptyKpiSnapshot();
+  errorMessage = error instanceof AdminApiError
+    ? error.message
+    : "Impossible de charger les KPI.";
+}
+
+const exportHref = kpiExportPath(queryParams);
+const targets = snapshot.bmcTargetsM6;
+
+const mauProgress = progressTowardTarget(snapshot.monthlyActiveUsers, targets.monthlyActiveUsers);
+const driversProgress = progressTowardTarget(snapshot.activeVerifiedDrivers, targets.activeVerifiedDrivers);
+const slaProgress = progressTowardTarget(snapshot.slaAvailability, targets.slaAvailabilityPercent);
+
+function formatIsoDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function formatCount(value: number): string {
+  return new Intl.NumberFormat("fr-CM").format(value ?? 0);
+}
+
+function formatFcfa(value: number): string {
+  return `${new Intl.NumberFormat("fr-CM", {
+    maximumFractionDigits: 0
+  }).format(Number(value ?? 0))} FCFA`;
+}
+
+function formatPercent(value: number): string {
+  return `${new Intl.NumberFormat("fr-CM", {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: 0
+  }).format(Number(value ?? 0))}%`;
+}
+
+function statusSummary(counts: Record<string, number>): string {
+  const entries = Object.entries(counts ?? {});
+  if (entries.length === 0) {
+    return "Aucune donnee";
+  }
+  return entries
+    .slice(0, 4)
+    .map(([status, total]) => `${status}: ${formatCount(total)}`)
+    .join(" · ");
+}
 ---
 
 <AdminLayout title="KPI produit et revenus" eyebrow="Analytics">
+  {
+    errorMessage && (
+      <p class="alert-warn" role="status">
+        {errorMessage} Affichage de secours vide.
+      </p>
+    )
+  }
+
+  <form method="get" action="/kpi" class="filter-bar">
+    <div>
+      <label for="from" class="field-label">Du</label>
+      <input id="from" name="from" type="date" value={from} class="field-control" />
+    </div>
+    <div>
+      <label for="to" class="field-label">Au</label>
+      <input id="to" name="to" type="date" value={to} class="field-control" />
+    </div>
+    <div>
+      <label for="period" class="field-label">Periode rapide</label>
+      <select id="period" name="period" class="field-control">
+        <option value="" selected={period === ""}>Plage personnalisee</option>
+        <option value="7d" selected={period === "7d"}>7 jours</option>
+        <option value="30d" selected={period === "30d"}>30 jours</option>
+        <option value="month" selected={period === "month"}>Mois en cours</option>
+      </select>
+    </div>
+    <button type="submit" class="btn-primary">Filtrer</button>
+    <a href={exportHref} class="btn-secondary">Export CSV</a>
+  </form>
+
+  {
+    snapshot.periodStart && snapshot.periodEnd && (
+      <p class="mb-4 text-sm text-muted">
+        Periode analysee : <span class="font-data">{snapshot.periodStart}</span>
+        → <span class="font-data">{snapshot.periodEnd}</span>
+        {targets.monthlyActiveUsers > 0 && (
+          <span class="ml-2">· Cibles BMC M6</span>
+        )}
+      </p>
+    )
+  }
+
   <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-    {
-      kpiCards.map((item) => (
-        <article class="rounded-lg border border-line bg-white p-5 shadow-panel">
-          <p class="text-sm text-muted">{item.label}</p>
-          <strong class="mt-3 block text-2xl font-semibold">{item.value}</strong>
-          <p class="mt-2 text-sm text-muted">{item.target}</p>
-        </article>
-      ))
-    }
+    <MetricCard
+      label="Utilisateurs actifs (MAU)"
+      value={formatCount(snapshot.monthlyActiveUsers)}
+      detail={`Cible M6 : ${formatCount(targets.monthlyActiveUsers)}`}
+      progress={mauProgress}
+      progressCaption={`${formatPercent(mauProgress)} de la cible`}
+    />
+    <MetricCard
+      label="Conducteurs verifies actifs"
+      value={formatCount(snapshot.activeVerifiedDrivers)}
+      detail={`Cible M6 : ${formatCount(targets.activeVerifiedDrivers)}`}
+      progress={driversProgress}
+      progressCaption={`${formatPercent(driversProgress)} de la cible`}
+    />
+    <MetricCard
+      label="Reservations"
+      value={formatCount(snapshot.reservationCount)}
+      detail={statusSummary(snapshot.reservationsByStatus)}
+    />
+    <MetricCard
+      label="Volume wallet"
+      value={formatFcfa(snapshot.walletVolumeFcfa)}
+      detail={`MTN ${formatFcfa(snapshot.mtnMomoVolumeFcfa)} · Orange ${formatFcfa(snapshot.orangeMoneyVolumeFcfa)}`}
+    />
+    <MetricCard
+      label="SLA disponibilite"
+      value={formatNullablePercent(snapshot.slaAvailability)}
+      detail={`Cible M6 : ${formatPercent(targets.slaAvailabilityPercent)}`}
+      progress={slaProgress}
+      progressCaption={`${formatPercent(slaProgress)} de la cible`}
+    />
+    <MetricCard
+      label="Latence moyenne sync SIG"
+      value={formatNullableSeconds(snapshot.avgSigSyncSeconds)}
+      detail="Moyenne sur la periode"
+    />
+    <MetricCard
+      label="Taux usage IA"
+      value={formatAiUsageRate(snapshot.aiUsageRate)}
+      detail="Indicateur produit"
+    />
   </section>
 
-  <section class="mt-6 rounded-lg border border-line bg-white p-5 shadow-panel">
+  <section class="panel mt-6 p-5">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div>
-        <h3 class="font-semibold">Export KPI</h3>
+        <h3 class="font-display font-semibold">Export KPI</h3>
         <p class="text-sm text-muted">
-          Les exports devront rester alignes sur les donnees visibles et agregees.
+          Export CSV aligne sur les filtres et les donnees affichees.
         </p>
       </div>
-      <button class="rounded-md bg-brand-700 px-4 py-2 text-sm font-medium text-white">
-        Export CSV
-      </button>
+      <a href={exportHref} class="btn-primary">Export CSV</a>
     </div>
   </section>
 </AdminLayout>
-

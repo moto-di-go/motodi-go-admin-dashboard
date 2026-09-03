@@ -4,23 +4,27 @@ export default {
   theme: {
     extend: {
       colors: {
-        ink: "#18212f",
-        muted: "#627089",
-        line: "#d9e0ea",
-        surface: "#f6f8fb",
+        ink: "#14201c",
+        muted: "#5c6f68",
+        line: "#d5e0db",
+        surface: "#f3f7f5",
         brand: {
-          50: "#ecfdf4",
-          100: "#d1fae5",
-          500: "#10b981",
-          700: "#047857",
-          900: "#064e3b"
+          50: "#ecf8f1",
+          100: "#d1f0df",
+          500: "#12a86a",
+          700: "#0b6e47",
+          900: "#084830"
         }
       },
+      fontFamily: {
+        sans: ['"Source Sans 3"', "Segoe UI", "ui-sans-serif", "system-ui", "sans-serif"],
+        display: ['"Sora"', '"Source Sans 3"', "ui-sans-serif", "system-ui", "sans-serif"],
+        mono: ['"IBM Plex Mono"', "ui-monospace", "monospace"]
+      },
       boxShadow: {
-        panel: "0 12px 30px rgba(24, 33, 47, 0.08)"
+        panel: "0 1px 2px rgba(20, 32, 28, 0.04), 0 10px 28px rgba(20, 32, 28, 0.06)"
       }
     }
   },
   plugins: []
 };
-

@@ -48,19 +48,19 @@ if (Astro.request.method === "POST") {
 ---
 
 <AuthLayout title="Connexion admin" eyebrow="Identifiez-vous pour acceder au back-office">
-  <section class="rounded-lg border border-line bg-white p-6 shadow-panel">
+  <section class="panel p-6">
     {
       errorMessage && (
-        <div class="mb-5 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900" role="alert">
+        <div class="alert-danger" role="alert">
           <p>{errorMessage}</p>
-          {correlationId && <p class="mt-1 text-xs text-red-700">Reference: {correlationId}</p>}
+          {correlationId && <p class="mt-1 font-data text-xs opacity-80">Reference: {correlationId}</p>}
         </div>
       )
     }
     <form method="post" action="/login" class="space-y-5" data-login-form>
       <input type="hidden" name="next" value={nextPath ?? ""} />
       <div>
-        <label for="phoneNumber" class="block text-sm font-medium text-ink">Telephone</label>
+        <label for="phoneNumber" class="field-label">Telephone</label>
         <input
           id="phoneNumber"
           name="phoneNumber"
@@ -68,23 +68,23 @@ if (Astro.request.method === "POST") {
           value={phoneNumber}
           required
           autocomplete="username"
-          class="mt-2 w-full rounded-md border border-line px-3 py-2 text-base outline-none focus:border-brand-700 focus:ring-2 focus:ring-brand-100"
+          class="field-control w-full"
         />
       </div>
       <div>
-        <label for="password" class="block text-sm font-medium text-ink">Mot de passe</label>
+        <label for="password" class="field-label">Mot de passe</label>
         <input
           id="password"
           name="password"
           type="password"
           required
           autocomplete="current-password"
-          class="mt-2 w-full rounded-md border border-line px-3 py-2 text-base outline-none focus:border-brand-700 focus:ring-2 focus:ring-brand-100"
+          class="field-control w-full"
         />
       </div>
       <button
         type="submit"
-        class="w-full rounded-md bg-brand-700 px-4 py-3 text-sm font-semibold text-white hover:bg-brand-900 disabled:cursor-wait disabled:opacity-70"
+        class="btn-primary w-full py-3 disabled:cursor-wait disabled:opacity-70"
         data-login-submit
       >
         Se connecter

@@ -1,5 +1,6 @@
 ---
 import AdminLayout from "../layouts/AdminLayout.astro";
+import StatusBadge from "../components/StatusBadge.astro";
 import { AdminApiError } from "../lib/server/api-client";
 import { listOpsPayments, opsExportPath } from "../lib/server/ops-service";
 import type { OpsPaymentSummary } from "../lib/ops/types";
@@ -52,36 +53,30 @@ function pageHref(targetPage: number): string {
 <AdminLayout title="Paiements" eyebrow="Pilotage">
   {
     errorMessage && (
-      <p class="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900" role="alert">
-        {errorMessage}
-      </p>
+      <p class="alert-danger" role="alert">{errorMessage}</p>
     )
   }
 
-  <p class="mb-4 rounded-md border border-line bg-surface px-4 py-3 text-sm text-muted">
+  <p class="panel mb-4 px-4 py-3 text-sm text-muted">
     Transactions wallet (depots et paiements trajet). Pour la reconciliation Mobile Money detaillee :
     <a class="font-medium text-brand-700 hover:underline" href="/reconciliation">ouvrir Reconciliation</a>
-    <span class="text-xs"> ({reconciliationEndpoint})</span>.
+    <span class="font-data text-xs"> ({reconciliationEndpoint})</span>.
   </p>
 
-  <form method="get" action="/payments" class="mb-5 flex flex-wrap items-end gap-3 border-b border-line pb-5">
+  <form method="get" action="/payments" class="filter-bar">
     <div>
-      <label for="search" class="block text-sm font-medium text-ink">Recherche</label>
+      <label for="search" class="field-label">Recherche</label>
       <input
         id="search"
         name="search"
         value={search}
         placeholder="Reference, telephone, id"
-        class="mt-2 rounded-md border border-line bg-white px-3 py-2 text-sm outline-none focus:border-brand-700 focus:ring-2 focus:ring-brand-100"
+        class="field-control"
       />
     </div>
     <div>
-      <label for="status" class="block text-sm font-medium text-ink">Statut</label>
-      <select
-        id="status"
-        name="status"
-        class="mt-2 rounded-md border border-line bg-white px-3 py-2 text-sm outline-none focus:border-brand-700 focus:ring-2 focus:ring-brand-100"
-      >
+      <label for="status" class="field-label">Statut</label>
+      <select id="status" name="status" class="field-control">
         {
           statusOptions.map((option) => (
             <option value={option} selected={status === option}>
@@ -91,46 +86,42 @@ function pageHref(targetPage: number): string {
         }
       </select>
     </div>
-    <button type="submit" class="rounded-md bg-brand-700 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-900">
-      Filtrer
-    </button>
-    <a href={exportHref} class="rounded-md border border-line px-4 py-2 text-sm font-medium hover:bg-surface">
-      Export CSV
-    </a>
+    <button type="submit" class="btn-primary">Filtrer</button>
+    <a href={exportHref} class="btn-secondary">Export CSV</a>
   </form>
 
-  <section class="rounded-lg border border-line bg-white shadow-panel">
+  <section class="panel overflow-hidden">
     <div class="border-b border-line px-5 py-4">
-      <h3 class="font-semibold">Transactions</h3>
+      <h3 class="font-display font-semibold">Transactions</h3>
       <p class="text-sm text-muted">{payments.length} transaction(s) sur cette page.</p>
     </div>
     <div class="overflow-x-auto">
-      <table class="w-full min-w-[780px] text-left text-sm">
-        <thead class="bg-surface text-xs uppercase text-muted">
+      <table class="data-table min-w-[780px]">
+        <thead>
           <tr>
-            <th class="px-5 py-3">Reference</th>
-            <th class="px-5 py-3">Type</th>
-            <th class="px-5 py-3">Statut</th>
-            <th class="px-5 py-3">Montant</th>
-            <th class="px-5 py-3">Telephone</th>
-            <th class="px-5 py-3">Date</th>
+            <th>Reference</th>
+            <th>Type</th>
+            <th>Statut</th>
+            <th class="text-right">Montant</th>
+            <th>Telephone</th>
+            <th>Date</th>
           </tr>
         </thead>
         <tbody>
           {
             payments.length === 0 ? (
               <tr>
-                <td class="px-5 py-4 text-muted" colspan="6">Aucune transaction.</td>
+                <td class="empty-state" colspan="6">Aucune transaction.</td>
               </tr>
             ) : (
               payments.map((item) => (
-                <tr class="border-t border-line">
-                  <td class="px-5 py-4 font-medium">{item.externalReference ?? item.id.slice(0, 8)}</td>
-                  <td class="px-5 py-4">{item.type}</td>
-                  <td class="px-5 py-4">{item.status}</td>
-                  <td class="px-5 py-4">{formatAmount(item.amount, item.currency)}</td>
-                  <td class="px-5 py-4 text-muted">{item.payerPhone ?? "-"}</td>
-                  <td class="px-5 py-4 text-muted">{formatDate(item.initiatedAt)}</td>
+                <tr>
+                  <td class="font-data text-xs">{item.externalReference ?? item.id.slice(0, 8)}</td>
+                  <td>{item.type}</td>
+                  <td><StatusBadge status={item.status} /></td>
+                  <td class="num">{formatAmount(item.amount, item.currency)}</td>
+                  <td class="font-data text-xs text-muted">{item.payerPhone ?? "-"}</td>
+                  <td class="text-muted">{formatDate(item.initiatedAt)}</td>
                 </tr>
               ))
             )
@@ -146,7 +137,7 @@ function pageHref(targetPage: number): string {
           <span class="text-muted">Precedent</span>
         )
       }
-      <span class="text-muted">Page {page + 1}</span>
+      <span class="font-data text-muted">Page {page + 1}</span>
       {
         hasMore ? (
           <a href={pageHref(page + 1)} class="font-medium text-brand-700 hover:underline">Suivant</a>

@@ -1,0 +1,13 @@
+---
+import { statusBadgeClass } from "../lib/ui/status";
+
+interface Props {
+  status: string | null | undefined;
+  class?: string;
+}
+
+const { status, class: className = "" } = Astro.props;
+const label = status?.trim() || "—";
+---
+
+<span class:list={[statusBadgeClass(status), className]}>{label}</span>

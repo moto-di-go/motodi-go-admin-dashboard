@@ -1,5 +1,7 @@
 ---
 import AdminLayout from "../layouts/AdminLayout.astro";
+import MetricCard from "../components/MetricCard.astro";
+import StatusBadge from "../components/StatusBadge.astro";
 import { AdminApiError } from "../lib/server/api-client";
 import { getOpsOverview, listOpsBookings, listOpsPayments } from "../lib/server/ops-service";
 import { emptyOpsOverview, type OpsBookingSummary, type OpsOverview, type OpsPaymentSummary } from "../lib/ops/types";
@@ -92,6 +94,10 @@ function formatDate(value: string | null | undefined): string {
   }).format(new Date(value));
 }
 
+function formatMoney(value: number, currency = "XAF"): string {
+  return `${new Intl.NumberFormat("fr-CM").format(value ?? 0)} ${currency}`;
+}
+
 function shortId(value: string): string {
   return value.slice(0, 8);
 }
@@ -100,60 +106,52 @@ function shortId(value: string): string {
 <AdminLayout title="Dashboard operations" eyebrow="Pilotage">
   {
     errorMessage && (
-      <p class="mb-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="status">
+      <p class="alert-warn" role="status">
         {errorMessage} Affichage de secours vide.
       </p>
     )
   }
 
-  <section class="mb-5 flex flex-wrap gap-2 text-sm">
-    <a href="/users" class="rounded-md border border-line bg-white px-3 py-2 font-medium hover:bg-surface">Utilisateurs</a>
-    <a href="/announcements" class="rounded-md border border-line bg-white px-3 py-2 font-medium hover:bg-surface">Annonces</a>
-    <a href="/bookings" class="rounded-md border border-line bg-white px-3 py-2 font-medium hover:bg-surface">Reservations</a>
-    <a href="/payments" class="rounded-md border border-line bg-white px-3 py-2 font-medium hover:bg-surface">Paiements</a>
-  </section>
-
   <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
     {
       cards.map((item) => (
-        <a href={item.href} class="rounded-lg border border-line bg-white p-5 shadow-panel hover:border-brand-700">
-          <p class="text-sm text-muted">{item.label}</p>
-          <strong class="mt-3 block text-2xl font-semibold">{item.value}</strong>
-          <p class="mt-2 text-sm text-muted">{item.detail}</p>
-        </a>
+        <MetricCard label={item.label} value={item.value} detail={item.detail} href={item.href} />
       ))
     }
   </section>
 
   <section class="mt-6 grid gap-6 xl:grid-cols-2">
-    <div class="rounded-lg border border-line bg-white shadow-panel">
-      <div class="border-b border-line px-5 py-4">
-        <h3 class="font-semibold">Reservations recentes</h3>
-        <p class="text-sm text-muted">Dernieres demandes interurbaines.</p>
+    <div class="panel overflow-hidden">
+      <div class="flex items-center justify-between border-b border-line px-5 py-4">
+        <div>
+          <h3 class="font-display font-semibold">Reservations recentes</h3>
+          <p class="text-sm text-muted">Dernieres demandes interurbaines.</p>
+        </div>
+        <a href="/bookings" class="text-sm font-medium text-brand-700 hover:underline">Voir tout</a>
       </div>
       <div class="overflow-x-auto">
-        <table class="w-full min-w-[480px] text-left text-sm">
-          <thead class="bg-surface text-xs uppercase text-muted">
+        <table class="data-table min-w-[480px]">
+          <thead>
             <tr>
-              <th class="px-5 py-3">Reference</th>
-              <th class="px-5 py-3">Statut</th>
-              <th class="px-5 py-3">Places</th>
-              <th class="px-5 py-3">Demande</th>
+              <th>Reference</th>
+              <th>Statut</th>
+              <th class="text-right">Places</th>
+              <th>Demande</th>
             </tr>
           </thead>
           <tbody>
             {
               recentBookings.length === 0 ? (
                 <tr>
-                  <td class="px-5 py-4 text-muted" colspan="4">Aucune reservation recente.</td>
+                  <td class="empty-state" colspan="4">Aucune reservation recente.</td>
                 </tr>
               ) : (
                 recentBookings.map((item) => (
-                  <tr class="border-t border-line">
-                    <td class="px-5 py-4 font-medium">{shortId(item.id)}</td>
-                    <td class="px-5 py-4">{item.status}</td>
-                    <td class="px-5 py-4">{item.seatsRequested}</td>
-                    <td class="px-5 py-4 text-muted">{formatDate(item.requestedAt)}</td>
+                  <tr>
+                    <td class="font-data text-xs">{shortId(item.id)}</td>
+                    <td><StatusBadge status={item.status} /></td>
+                    <td class="num">{item.seatsRequested}</td>
+                    <td class="text-muted">{formatDate(item.requestedAt)}</td>
                   </tr>
                 ))
               )
@@ -163,34 +161,37 @@ function shortId(value: string): string {
       </div>
     </div>
 
-    <div class="rounded-lg border border-line bg-white shadow-panel">
-      <div class="border-b border-line px-5 py-4">
-        <h3 class="font-semibold">Paiements recents</h3>
-        <p class="text-sm text-muted">{overview.paymentsNote ?? "Transactions wallet et trajets."}</p>
+    <div class="panel overflow-hidden">
+      <div class="flex items-center justify-between border-b border-line px-5 py-4">
+        <div>
+          <h3 class="font-display font-semibold">Paiements recents</h3>
+          <p class="text-sm text-muted">{overview.paymentsNote ?? "Transactions wallet et trajets."}</p>
+        </div>
+        <a href="/payments" class="text-sm font-medium text-brand-700 hover:underline">Voir tout</a>
       </div>
       <div class="overflow-x-auto">
-        <table class="w-full min-w-[480px] text-left text-sm">
-          <thead class="bg-surface text-xs uppercase text-muted">
+        <table class="data-table min-w-[480px]">
+          <thead>
             <tr>
-              <th class="px-5 py-3">Reference</th>
-              <th class="px-5 py-3">Statut</th>
-              <th class="px-5 py-3">Montant</th>
-              <th class="px-5 py-3">Initie</th>
+              <th>Reference</th>
+              <th>Statut</th>
+              <th class="text-right">Montant</th>
+              <th>Initie</th>
             </tr>
           </thead>
           <tbody>
             {
               recentPayments.length === 0 ? (
                 <tr>
-                  <td class="px-5 py-4 text-muted" colspan="4">Aucune transaction recente.</td>
+                  <td class="empty-state" colspan="4">Aucune transaction recente.</td>
                 </tr>
               ) : (
                 recentPayments.map((item) => (
-                  <tr class="border-t border-line">
-                    <td class="px-5 py-4 font-medium">{item.externalReference ?? shortId(item.id)}</td>
-                    <td class="px-5 py-4">{item.status}</td>
-                    <td class="px-5 py-4">{formatCount(Number(item.amount))} {item.currency}</td>
-                    <td class="px-5 py-4 text-muted">{formatDate(item.initiatedAt)}</td>
+                  <tr>
+                    <td class="font-data text-xs">{item.externalReference ?? shortId(item.id)}</td>
+                    <td><StatusBadge status={item.status} /></td>
+                    <td class="num">{formatMoney(Number(item.amount), item.currency)}</td>
+                    <td class="text-muted">{formatDate(item.initiatedAt)}</td>
                   </tr>
                 ))
               )
